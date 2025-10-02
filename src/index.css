@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Spending Tracker Design System - Dark-first elegant theme with sophisticated gradients */
+
+@layer base {
+  :root {
+    --background: 240 8% 6%;
+    --foreground: 240 5% 96%;
+
+    /* Card system */
+    --card: 240 6% 8%;
+    --card-foreground: 240 5% 96%;
+    --card-hover: 240 6% 10%;
+
+    /* Interactive elements */
+    --popover: 240 6% 8%;
+    --popover-foreground: 240 5% 96%;
+
+    /* Primary brand colors - sophisticated blue-purple */
+    --primary: 243 75% 59%;
+    --primary-foreground: 240 5% 96%;
+    --primary-glow: 243 75% 70%;
+
+    /* Secondary - elegant purple accent */
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 240 5% 96%;
+
+    /* Muted backgrounds */
+    --muted: 240 6% 10%;
+    --muted-foreground: 240 4% 64%;
+
+    /* Accent colors - success green and warning amber */
+    --accent: 240 6% 12%;
+    --accent-foreground: 240 5% 96%;
+    --success: 142 76% 36%;
+    --success-foreground: 240 5% 96%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 8% 6%;
+
+    /* Destructive states */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 240 5% 96%;
+
+    /* Borders and inputs */
+    --border: 240 6% 14%;
+    --input: 240 6% 12%;
+    --ring: 243 75% 59%;
+
+    /* Design system */
+    --radius: 1rem;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(243 75% 59%), hsl(260 75% 65%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(158 76% 42%));
+    --gradient-card: linear-gradient(135deg, hsl(240 6% 8%), hsl(240 6% 10%));
+    
+    /* Shadows */
+    --shadow-card: 0 4px 6px -1px hsl(240 8% 4% / 0.2), 0 2px 4px -1px hsl(240 8% 4% / 0.1);
+    --shadow-glow: 0 0 20px hsl(243 75% 59% / 0.3);
+    
+    /* Animation timing */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Financial dashboard components */
+  .kpi-card {
+    @apply bg-gradient-to-br from-card to-card-hover border border-border rounded-2xl p-6 shadow-[var(--shadow-card)] transition-[var(--transition-smooth)] hover:shadow-[var(--shadow-glow)];
+  }
+  
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-success {
+    background: var(--gradient-success);
+  }
+  
+  .gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  .currency-bhd::before {
+    content: "BD ";
+    @apply text-muted-foreground;
+  }
+  
+  .animate-fade-up {
+    animation: fade-up 0.6s ease-out forwards;
+  }
+  
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .chart-tooltip {
+    @apply bg-card border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm;
+  }
+}

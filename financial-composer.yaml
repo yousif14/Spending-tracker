@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  # Financial App Frontend (No database needed - using n8n Data Tables!)
+  financial-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: financial-app
+    restart: always
+    networks:
+      - n8n-net  # Connect to your existing n8n network only
+    environment:
+      # Point to your existing HTTPS n8n domain
+      - VITE_API_BASE_URL=https://n8n.11homelab.cc
+      - VITE_N8N_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MjdmZGVlNi1hZWQ2LTQ0OTQtOWMwNi00Njk0ZTZhNDFjZWIiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU5MTMzOTcwfQ.Tc1boAM2zUE6_MjbT_GxicxTaYYOmtc-DJuAHGzb3-k
+      - VITE_DEFAULT_FROM=23
+      - VITE_DEFAULT_TO=22
+      - TZ=Asia/Bahrain
+    ports:
+      - "3002:80"  # Changed to 3002 to avoid conflicts
+
+  # OPTIONAL: Separate Cloudflare tunnel for financial app
+  # Uncomment and add your tunnel token if you want external access
+  # financial-tunnel:
+  #   image: cloudflare/cloudflared:latest
+  #   container_name: financial-tunnel
+  #   restart: always
+  #   networks:
+  #     - n8n-net
+  #   command: tunnel --no-autoupdate run --token YOUR_FINANCIAL_APP_TUNNEL_TOKEN
+  #   depends_on:
+  #     - financial-app
+
+# No volumes needed - data stored in n8n Data Tables!
+
+networks:
+  n8n-net:
+    external: true  # Use your existing n8n network
