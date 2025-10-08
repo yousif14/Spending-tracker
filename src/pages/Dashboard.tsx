@@ -1,4 +1,20 @@
-import React, { useState, useMemo } from 'react';
+/**
+ * @fileoverview Dashboard Page Component
+ *
+ * Main dashboard displaying financial overview with KPIs, charts, and recent transactions.
+ * Uses fiscal month windows (23rd to 22nd) for all calculations and displays.
+ *
+ * Key Features:
+ * - Unified date range selector (Current, Prev, Next, Custom, All Time)
+ * - Real-time stats: Total, Avg Daily (to-date & full), Budget Remaining
+ * - Category and spending trend charts
+ * - Recent transactions (newest first)
+ * - localStorage persistence for date range and budget
+ *
+ * @component
+ */
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, Receipt, Calendar, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -6,27 +22,139 @@ import { Button } from '@/components/ui/button';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { SpendingChart } from '@/components/dashboard/SpendingChart';
 import { CategoryChart } from '@/components/dashboard/CategoryChart';
+import { DateRangeSelector } from '@/components/DateRangeSelector';
 import { apiClient } from '@/lib/api';
 import { formatBHD } from '@/lib/mockData';
 import { Transaction, Category, Summary, KPIData } from '@/types';
+import { getCurrentPeriodWindow, getPeriodWindow, combineDateTime, DateRangeConfig, buildRange } from '@/utils/period';
+import { getCategoryColor } from '@/utils/categoryColors';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  
-  // Get today's date for max range
-  const today = new Date().toISOString().split('T')[0];
-  
-  const [dateRange] = useState({
-    start: '2020-01-01',
-    end: today
+
+  // ========================================================================
+  // STATE MANAGEMENT
+  // ========================================================================
+
+  /**
+   * Date range configuration (persisted in localStorage)
+   * Default: current fiscal period
+   */
+  const [dateRangeConfig, setDateRangeConfig] = useState<DateRangeConfig>(() => {
+    const saved = localStorage.getItem('txnRange:v1');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fall through to default
+      }
+    }
+    const current = getCurrentPeriodWindow();
+    return {
+      mode: 'fiscal',
+      month: current.month,
+      year: current.year,
+    };
   });
 
-  // ⭐ CRITICAL: Fetch ALL transactions with wide date range
+  /**
+   * Budget amount in BHD (persisted in localStorage)
+   * Default: 750
+   */
+  const [budget, setBudget] = useState(() => {
+    const saved = localStorage.getItem('dashboard-budget');
+    return saved ? Number(saved) : 750;
+  });
+
+  // Resolve date range to from/to dates
+  const resolvedRange = useMemo(() => buildRange(dateRangeConfig), [dateRangeConfig]);
+
+  // Calculate previous period for comparison (only for fiscal mode)
+  const previousPeriod = useMemo(() => {
+    if (dateRangeConfig.mode === 'fiscal' && dateRangeConfig.month && dateRangeConfig.year) {
+      const prevMonth = dateRangeConfig.month === 1 ? 12 : dateRangeConfig.month - 1;
+      const prevYear = dateRangeConfig.month === 1 ? dateRangeConfig.year - 1 : dateRangeConfig.year;
+      return getPeriodWindow(prevYear, prevMonth);
+    }
+    return null;
+  }, [dateRangeConfig]);
+
+  // Persist budget to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('dashboard-budget', budget.toString());
+  }, [budget]);
+
+  // ========================================================================
+  // DATA FETCHING
+  // ========================================================================
+
+  /**
+   * Fetch all transactions (database has string dates, filter client-side)
+   */
   const { data: allTransactions = [], isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions', '2020-01-01', '2030-12-31'],
-    queryFn: () => apiClient.getTransactions('2020-01-01', '2030-12-31'),
+    queryKey: ['transactions'],
+    queryFn: () => apiClient.getTransactions(),
     staleTime: 30000,
   });
+
+  // Client-side date filtering
+  const currentPeriodTransactions = useMemo(() => {
+    // If mode is 'all', return everything
+    if (dateRangeConfig.mode === 'all') {
+      return allTransactions;
+    }
+
+    // If no date range, return everything
+    if (!resolvedRange.from || !resolvedRange.to) {
+      return allTransactions;
+    }
+
+    // Filter by date range (string comparison works for YYYY-MM-DD format)
+    return allTransactions.filter(t => {
+      const txnDate = t.date;
+      return txnDate >= resolvedRange.from! && txnDate <= resolvedRange.to!;
+    });
+  }, [allTransactions, resolvedRange, dateRangeConfig.mode]);
+
+  // Fetch current period stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['transaction-stats', resolvedRange.from, resolvedRange.to, budget],
+    queryFn: async () => {
+      // For "all time" mode, calculate stats client-side
+      if (dateRangeConfig.mode === 'all') {
+        const total = currentPeriodTransactions.reduce((sum, t) => sum + t.amount, 0);
+        return {
+          total,
+          daysElapsed: 0,
+          daysInWindow: 0,
+          avgDailyToDate: 0,
+          avgDailyFull: 0,
+          budget,
+          budgetRemaining: budget - total,
+        };
+      }
+      // For fiscal/custom modes with specific dates
+      if (resolvedRange.from && resolvedRange.to) {
+        return apiClient.getTransactionStats(resolvedRange.from, resolvedRange.to, budget);
+      }
+      return null;
+    },
+    enabled: dateRangeConfig.mode === 'all' || (!!resolvedRange.from && !!resolvedRange.to),
+    staleTime: 30000,
+  });
+
+  // Client-side filtering for previous period (only for fiscal mode)
+  const previousPeriodTransactions = useMemo(() => {
+    if (!previousPeriod) {
+      return [];
+    }
+
+    // Filter by previous period date range
+    return allTransactions.filter(t => {
+      const txnDate = t.date;
+      return txnDate >= previousPeriod.from && txnDate <= previousPeriod.to;
+    });
+  }, [allTransactions, previousPeriod]);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],
@@ -34,53 +162,43 @@ export default function Dashboard() {
     staleTime: 300000,
   });
 
-  // 🔥 DEBUG: Log the actual count
-  console.log('=== DASHBOARD DEBUG ===');
-  console.log('Total transactions loaded:', allTransactions.length);
-  console.log('First transaction:', allTransactions[0]);
-  console.log('Last transaction:', allTransactions[allTransactions.length - 1]);
+  // ========================================================================
+  // DATA PROCESSING & CALCULATIONS
+  // ========================================================================
 
-  // Filter transactions by selected date range
-  const filteredTransactions = useMemo(() => {
-    const filtered = allTransactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      const startDate = new Date(dateRange.start);
-      const endDate = new Date(dateRange.end);
-      return transactionDate >= startDate && transactionDate <= endDate;
+  /**
+   * Sort transactions by combined datetime (newest first)
+   */
+  const sortedTransactions = useMemo(() => {
+    return [...currentPeriodTransactions].sort((a, b) => {
+      const aDateTime = combineDateTime(a.date, a.time);
+      const bDateTime = combineDateTime(b.date, b.time);
+      return bDateTime.localeCompare(aDateTime); // DESC order (newest first)
     });
-    console.log('Filtered transactions:', filtered.length);
-    return filtered;
-  }, [allTransactions, dateRange]);
+  }, [currentPeriodTransactions]);
 
-  // Compute current month data
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const currentMonthTransactions = useMemo(() => {
-    const filtered = allTransactions.filter(t => t.date.startsWith(currentMonth));
-    console.log('Current month transactions:', filtered.length);
-    return filtered;
-  }, [allTransactions, currentMonth]);
-
-  // Compute previous month data
-  const previousMonth = new Date();
-  previousMonth.setMonth(previousMonth.getMonth() - 1);
-  const prevMonthStr = previousMonth.toISOString().slice(0, 7);
-  const previousMonthTransactions = useMemo(() => {
-    return allTransactions.filter(t => t.date.startsWith(prevMonthStr));
-  }, [allTransactions, prevMonthStr]);
-
-  // Compute summary data
+  /**
+   * Compute summary data for charts
+   * - Top 5 categories by spending (sorted descending)
+   * - Daily spending series
+   * - Top 5 merchants by spending
+   */
   const summary: Summary = useMemo(() => {
+    const total = sortedTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // Get top 5 categories by amount
     const totalsByCategory = categories.map(category => ({
       category: category.name,
-      amount: filteredTransactions
+      amount: sortedTransactions
         .filter(t => t.category === category.name)
         .reduce((sum, t) => sum + t.amount, 0),
-      color: category.color,
-    })).filter(item => item.amount > 0);
+      color: getCategoryColor(category.name),
+    }))
+    .filter(item => item.amount > 0)
+    .sort((a, b) => b.amount - a.amount) // Sort descending
+    .slice(0, 5); // Top 5 only
 
-    const total = totalsByCategory.reduce((sum, item) => sum + item.amount, 0);
-
-    const dailySeries = filteredTransactions.reduce((acc, transaction) => {
+    const dailySeries = sortedTransactions.reduce((acc, transaction) => {
       const existing = acc.find(d => d.date === transaction.date);
       if (existing) {
         existing.amount += transaction.amount;
@@ -90,7 +208,7 @@ export default function Dashboard() {
       return acc;
     }, [] as { date: string; amount: number }[]).sort((a, b) => a.date.localeCompare(b.date));
 
-    const topMerchants = filteredTransactions.reduce((acc, transaction) => {
+    const topMerchants = sortedTransactions.reduce((acc, transaction) => {
       const existing = acc.find(m => m.merchant === transaction.merchant);
       if (existing) {
         existing.amount += transaction.amount;
@@ -113,54 +231,69 @@ export default function Dashboard() {
       topMerchants,
       dailySeries,
     };
-  }, [filteredTransactions, categories]);
+  }, [sortedTransactions, categories]);
 
-  // 🎯 CRITICAL: Compute ACCURATE KPI data
+  // Calculate KPI data
   const kpiData: KPIData = useMemo(() => {
-    const totalThisMonth = currentMonthTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const totalLastMonth = previousMonthTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const vsLastMonth = totalLastMonth > 0 
-      ? ((totalThisMonth - totalLastMonth) / totalLastMonth) * 100 
+    if (!stats) {
+      return {
+        totalThisMonth: 0,
+        vsLastMonth: 0,
+        transactionCount: 0,
+        avgDaily: 0,
+      };
+    }
+
+    const totalThisMonth = stats.total;
+    const totalLastMonth = previousPeriodTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const vsLastMonth = totalLastMonth > 0
+      ? ((totalThisMonth - totalLastMonth) / totalLastMonth) * 100
       : 0;
 
-    // ⭐ THIS IS THE FIX: Use filteredTransactions.length NOT some other count
-    const transactionCount = filteredTransactions.length;
-    
-    console.log('=== KPI CALCULATIONS ===');
-    console.log('Total This Month:', totalThisMonth);
-    console.log('Transaction Count:', transactionCount);
-    console.log('Filtered count:', filteredTransactions.length);
-    
-    const days = summary.dailySeries.length || 1;
-    const avgDaily = summary.total / days;
+    const transactionCount = currentPeriodTransactions.length;
+    const avgDaily = stats.avgDailyToDate;
 
     return {
       totalThisMonth,
-      vsLastMonth,
-      transactionCount, // ⭐ THIS WILL NOW SHOW 932!
+      vsLastMonth: previousPeriod ? vsLastMonth : 0,
+      transactionCount,
       avgDaily,
     };
-  }, [currentMonthTransactions, previousMonthTransactions, filteredTransactions, summary]);
+  }, [stats, currentPeriodTransactions, previousPeriodTransactions, previousPeriod]);
 
-  const isLoading = transactionsLoading || categoriesLoading;
+  const isLoading = transactionsLoading || categoriesLoading || statsLoading;
+
+  // Get display label for current range
+  const getRangeLabel = () => {
+    if (dateRangeConfig.mode === 'all') {
+      return 'All Time';
+    }
+    if (dateRangeConfig.mode === 'custom' && resolvedRange.from && resolvedRange.to) {
+      return `${resolvedRange.from} → ${resolvedRange.to}`;
+    }
+    if (dateRangeConfig.mode === 'fiscal' && dateRangeConfig.month && dateRangeConfig.year) {
+      return `Month ${dateRangeConfig.month} (${dateRangeConfig.year})`;
+    }
+    return 'Select Range';
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8 animate-fade-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your spending overview.</p>
+          <p className="text-muted-foreground">
+            {getRangeLabel()}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="font-medium"
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            All Time
-          </Button>
-        </div>
+
+        {/* Date Range Selector */}
+        <DateRangeSelector
+          value={dateRangeConfig}
+          onChange={setDateRangeConfig}
+          storageKey="txnRange:v1"
+        />
       </div>
 
       {/* KPI Cards */}
@@ -175,9 +308,9 @@ export default function Dashboard() {
         ) : (
           <>
             <KPICard
-              title="Total This Month"
-              value={formatBHD(kpiData.totalThisMonth)}
-              change={kpiData.vsLastMonth}
+              title={`Total ${dateRangeConfig.mode === 'all' ? 'All Time' : 'This Period'}`}
+              value={formatBHD(stats?.total ?? 0)}
+              change={previousPeriod ? kpiData.vsLastMonth : undefined}
               icon={TrendingUp}
             />
             <KPICard
@@ -185,17 +318,51 @@ export default function Dashboard() {
               value={kpiData.transactionCount.toString()}
               icon={Receipt}
             />
-            <KPICard
-              title="Average Daily"
-              value={formatBHD(kpiData.avgDaily)}
-              icon={Calendar}
-            />
-            <KPICard
-              title="Budget Remaining"
-              value={formatBHD(500.000 - kpiData.totalThisMonth)}
-              change={-15.2}
-              icon={Target}
-            />
+            {dateRangeConfig.mode !== 'all' && stats && stats.daysElapsed > 0 ? (
+              <div className="kpi-card">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    <h3 className="text-sm font-medium text-muted-foreground">Average Daily</h3>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">To-date ({stats.daysElapsed} days)</p>
+                    <p className="text-2xl font-bold text-foreground">{formatBHD(stats.avgDailyToDate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Full window ({stats.daysInWindow} days)</p>
+                    <p className="text-xl font-semibold text-muted-foreground">{formatBHD(stats.avgDailyFull)}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="kpi-card">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  <h3 className="text-sm font-medium text-muted-foreground">Average Daily</h3>
+                </div>
+                <p className="text-2xl font-bold text-muted-foreground mt-4">N/A</p>
+                <p className="text-xs text-muted-foreground mt-1">Not applicable for All Time view</p>
+              </div>
+            )}
+            <div className="kpi-card">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-primary" />
+                  <h3 className="text-sm font-medium text-muted-foreground">Budget Remaining ({budget} BHD)</h3>
+                </div>
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${(stats?.budgetRemaining ?? 0) < 0 ? 'text-red-600' : 'text-foreground'}`}>
+                  {formatBHD(stats?.budgetRemaining ?? 0)}
+                </p>
+                {stats && stats.budgetRemaining < 0 && (
+                  <p className="text-sm text-red-600 mt-2">⚠️ Over budget by {formatBHD(Math.abs(stats.budgetRemaining))}</p>
+                )}
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -234,7 +401,7 @@ export default function Dashboard() {
             View All
           </Button>
         </div>
-        
+
         <div className="space-y-3">
           {isLoading ? (
             <div className="space-y-3">
@@ -250,7 +417,7 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            filteredTransactions.slice(0, 5).map((transaction, index) => (
+            sortedTransactions.slice(0, 5).map((transaction, index) => (
               <div
                 key={index}
                 className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
@@ -268,7 +435,9 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{transaction.merchant}</p>
-                  <p className="text-sm text-muted-foreground">{transaction.date}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {transaction.date} {transaction.time && <span className="text-xs">• {transaction.time}</span>}
+                  </p>
                 </div>
                 <p className="font-semibold text-foreground currency-bhd">
                   {transaction.amount.toFixed(3)}
