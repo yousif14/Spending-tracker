@@ -110,12 +110,12 @@ class ApiClient {
     });
   }
 
-  async updateTransaction(sn: string, transaction: Partial<Transaction>): Promise<Transaction> {
-    return this.fetchWithAuth(`/api/transactions/${sn}`, {
-      method: 'PUT',
-      body: JSON.stringify(transaction),
-    });
-  }
+async updateTransaction(sn: string, transaction: Partial<Transaction>): Promise<Transaction> {
+  return this.fetchWithAuth(`/update-transaction/api/update-transactions/${sn}`, {
+    method: 'PUT',
+    body: JSON.stringify(transaction),
+  });
+}
 
   // Categories
   async getCategories(): Promise<Category[]> {

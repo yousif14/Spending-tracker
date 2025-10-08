@@ -1,23 +1,14 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Receipt, 
-  Target, 
-  FolderOpen, 
-  Settings,
-  Menu,
-  X,
-  Wallet
-} from 'lucide-react';
+import { Home, LayoutDashboard, Receipt, PieChart, FolderOpen, Settings, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const navigationItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Transactions', href: '/transactions', icon: Receipt },
-  { name: 'Budget', href: '/budget', icon: Target },
-  { name: 'Categories', href: '/categories', icon: FolderOpen },  
+  { name: 'Budget', href: '/budget', icon: PieChart },
+  { name: 'Categories', href: '/categories', icon: FolderOpen },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -27,19 +18,19 @@ export function Navigation() {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex bg-card/50 backdrop-blur-sm border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 w-full">
+      <nav className="hidden md:block bg-card/50 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 bg-sky-400 rounded-lg flex items-center justify-center">
+                <Home className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-foreground">Spending Tracker</span>
+              <span className="text-lg font-bold text-foreground">11 App</span>
             </div>
 
             {/* Navigation Links */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {navigationItems.map((item) => (
                 <NavLink
                   key={item.name}
@@ -68,10 +59,10 @@ export function Navigation() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 bg-sky-400 rounded-lg flex items-center justify-center">
+                <Home className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-foreground">Spending Tracker</span>
+              <span className="text-lg font-bold text-foreground">11 App</span>
             </div>
 
             {/* Mobile Menu Button */}
@@ -109,7 +100,7 @@ export function Navigation() {
                 </NavLink>
               ))}
             </div>
-          </div> 
+          </div>
         )}
       </nav>
     </>

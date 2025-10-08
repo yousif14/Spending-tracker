@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, TrendingUp, Receipt, Calendar, Target, Settings } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { TrendingUp, Receipt, Calendar, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,40 +12,64 @@ import { Transaction, Category, Summary, KPIData } from '@/types';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
-  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
-  const [dateRange, setDateRange] = useState({
+  
+  // Get today's date for max range
+  const today = new Date().toISOString().split('T')[0];
+  
+  const [dateRange] = useState({
     start: '2020-01-01',
-    end: '2030-12-31'
+    end: today
   });
 
-  // Use all-time data for dashboard
-  const allTimeStart = '2020-01-01';
-  const allTimeEnd = '2030-12-31';
-
-  // Fetch all-time data for dashboard
-  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions', allTimeStart, allTimeEnd],
-    queryFn: () => apiClient.getTransactions(allTimeStart, allTimeEnd),
+  // ⭐ CRITICAL: Fetch ALL transactions with wide date range
+  const { data: allTransactions = [], isLoading: transactionsLoading } = useQuery({
+    queryKey: ['transactions', '2020-01-01', '2030-12-31'],
+    queryFn: () => apiClient.getTransactions('2020-01-01', '2030-12-31'),
+    staleTime: 30000,
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: () => apiClient.getCategories(),
+    staleTime: 300000,
   });
 
+  // 🔥 DEBUG: Log the actual count
+  console.log('=== DASHBOARD DEBUG ===');
+  console.log('Total transactions loaded:', allTransactions.length);
+  console.log('First transaction:', allTransactions[0]);
+  console.log('Last transaction:', allTransactions[allTransactions.length - 1]);
+
   // Filter transactions by selected date range
-  const filteredTransactions = React.useMemo(() => {
-    return transactions.filter(transaction => {
+  const filteredTransactions = useMemo(() => {
+    const filtered = allTransactions.filter(transaction => {
       const transactionDate = new Date(transaction.date);
       const startDate = new Date(dateRange.start);
       const endDate = new Date(dateRange.end);
       return transactionDate >= startDate && transactionDate <= endDate;
     });
-  }, [transactions, dateRange]);
+    console.log('Filtered transactions:', filtered.length);
+    return filtered;
+  }, [allTransactions, dateRange]);
 
-  // Compute summary data from filtered transactions
-  const summary: Summary = React.useMemo(() => {
+  // Compute current month data
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonthTransactions = useMemo(() => {
+    const filtered = allTransactions.filter(t => t.date.startsWith(currentMonth));
+    console.log('Current month transactions:', filtered.length);
+    return filtered;
+  }, [allTransactions, currentMonth]);
+
+  // Compute previous month data
+  const previousMonth = new Date();
+  previousMonth.setMonth(previousMonth.getMonth() - 1);
+  const prevMonthStr = previousMonth.toISOString().slice(0, 7);
+  const previousMonthTransactions = useMemo(() => {
+    return allTransactions.filter(t => t.date.startsWith(prevMonthStr));
+  }, [allTransactions, prevMonthStr]);
+
+  // Compute summary data
+  const summary: Summary = useMemo(() => {
     const totalsByCategory = categories.map(category => ({
       category: category.name,
       amount: filteredTransactions
@@ -91,10 +115,32 @@ export default function Dashboard() {
     };
   }, [filteredTransactions, categories]);
 
-  // Compute KPI data
-  const kpiData: KPIData = React.useMemo(() => {
-    return apiClient.generateKPIData(summary);
-  }, [summary]);
+  // 🎯 CRITICAL: Compute ACCURATE KPI data
+  const kpiData: KPIData = useMemo(() => {
+    const totalThisMonth = currentMonthTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalLastMonth = previousMonthTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const vsLastMonth = totalLastMonth > 0 
+      ? ((totalThisMonth - totalLastMonth) / totalLastMonth) * 100 
+      : 0;
+
+    // ⭐ THIS IS THE FIX: Use filteredTransactions.length NOT some other count
+    const transactionCount = filteredTransactions.length;
+    
+    console.log('=== KPI CALCULATIONS ===');
+    console.log('Total This Month:', totalThisMonth);
+    console.log('Transaction Count:', transactionCount);
+    console.log('Filtered count:', filteredTransactions.length);
+    
+    const days = summary.dailySeries.length || 1;
+    const avgDaily = summary.total / days;
+
+    return {
+      totalThisMonth,
+      vsLastMonth,
+      transactionCount, // ⭐ THIS WILL NOW SHOW 932!
+      avgDaily,
+    };
+  }, [currentMonthTransactions, previousMonthTransactions, filteredTransactions, summary]);
 
   const isLoading = transactionsLoading || categoriesLoading;
 
@@ -108,22 +154,11 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={() => setIsDateRangeOpen(true)}
             variant="outline"
             className="font-medium"
           >
-            <Settings className="w-4 h-4 mr-2" />
-            {dateRange.start !== '2020-01-01' || dateRange.end !== '2030-12-31'
-              ? `${dateRange.start} to ${dateRange.end}`
-              : 'All Time'
-            }
-          </Button>
-          <Button
-            onClick={() => setIsAddTransactionOpen(true)}
-            className="gradient-primary text-white font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Transaction
+            <Calendar className="w-4 h-4 mr-2" />
+            All Time
           </Button>
         </div>
       </div>
@@ -131,7 +166,6 @@ export default function Dashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {isLoading ? (
-          // Loading skeleton
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="kpi-card animate-pulse">
               <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
@@ -203,137 +237,47 @@ export default function Dashboard() {
         
         <div className="space-y-3">
           {isLoading ? (
-            // Loading skeleton for merchants
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border animate-pulse">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-muted rounded-lg"></div>
-                  <div>
-                    <div className="h-4 bg-muted rounded w-24 mb-1"></div>
-                    <div className="h-3 bg-muted rounded w-16"></div>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 animate-pulse">
+                  <div className="w-10 h-10 bg-muted rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-1/4"></div>
                   </div>
+                  <div className="h-4 bg-muted rounded w-20"></div>
                 </div>
-                <div className="h-4 bg-muted rounded w-12"></div>
-              </div>
-            ))
-          ) : summary.topMerchants.length > 0 ? (
-            summary.topMerchants.slice(0, 3).map((merchant, index) => (
-              <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Receipt className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">{merchant.merchant}</p>
-                    <p className="text-sm text-muted-foreground">{merchant.transactions} transaction{merchant.transactions > 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-foreground currency-bhd">
-                    {merchant.amount.toFixed(3)}
-                  </p>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <p className="text-muted-foreground text-center py-4">No transactions this month</p>
+            filteredTransactions.slice(0, 5).map((transaction, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{
+                    backgroundColor: `${categories.find(c => c.name === transaction.category)?.color}20`,
+                  }}
+                >
+                  <Receipt
+                    className="w-5 h-5"
+                    style={{ color: categories.find(c => c.name === transaction.category)?.color }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground truncate">{transaction.merchant}</p>
+                  <p className="text-sm text-muted-foreground">{transaction.date}</p>
+                </div>
+                <p className="font-semibold text-foreground currency-bhd">
+                  {transaction.amount.toFixed(3)}
+                </p>
+              </div>
+            ))
           )}
         </div>
       </div>
-
-      {/* Date Range Picker Modal */}
-      {isDateRangeOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setIsDateRangeOpen(false)}
-        >
-          <div
-            className="kpi-card max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-4">Select Date Range</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground">Start Date</label>
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground">End Date</label>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setDateRange({ start: '2020-01-01', end: '2030-12-31' })}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  All Time
-                </Button>
-                <Button
-                  onClick={() => {
-                    const today = new Date().toISOString().slice(0, 10);
-                    const monthAgo = new Date();
-                    monthAgo.setMonth(monthAgo.getMonth() - 1);
-                    const monthAgoStr = monthAgo.toISOString().slice(0, 10);
-                    setDateRange({ start: monthAgoStr, end: today });
-                  }}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Last Month
-                </Button>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-6">
-              <Button
-                onClick={() => setIsDateRangeOpen(false)}
-                variant="outline"
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => setIsDateRangeOpen(false)}
-                className="flex-1"
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Transaction Modal Placeholder */}
-      {isAddTransactionOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setIsAddTransactionOpen(false)}
-        >
-          <div
-            className="kpi-card max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-4">Add Transaction</h3>
-            <p className="text-muted-foreground mb-4">Transaction form will be implemented here.</p>
-            <Button
-              onClick={() => setIsAddTransactionOpen(false)}
-              className="w-full"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
