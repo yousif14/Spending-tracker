@@ -88,12 +88,33 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* iOS Safe Area Support */
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: max(0px, env(safe-area-inset-left));
+      padding-right: max(0px, env(safe-area-inset-right));
+      padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+  }
 }
 
 @layer components {
   /* Financial dashboard components */
   .kpi-card {
     @apply bg-gradient-to-br from-card to-card-hover border border-border rounded-2xl p-6 shadow-[var(--shadow-card)] transition-[var(--transition-smooth)] hover:shadow-[var(--shadow-glow)];
+  }
+
+  /* Mobile-optimized variant */
+  @media (max-width: 768px) {
+    .kpi-card {
+      @apply p-4 rounded-xl;
+    }
+  }
+
+  /* Touch-friendly interactive elements */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
   }
   
   .gradient-primary {

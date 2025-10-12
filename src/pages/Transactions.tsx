@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Edit2, Save, XCircle, Trash2, AlertTriangle, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DateRangeSelector } from '@/components/DateRangeSelector';
+import { TransactionCard } from '@/components/transactions/TransactionCard';
 import { apiClient } from '@/lib/api';
 import { Transaction } from '@/types';
 import { getCurrentPeriodWindow, combineDateTime, DateRangeConfig, buildRange } from '@/utils/period';
@@ -86,6 +87,15 @@ export default function Transactions() {
     category: '',
     tag: '',
   });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile view
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Advanced search fields
   const [searchFilters, setSearchFilters] = useState({
@@ -508,19 +518,20 @@ const createMutation = useMutation({
   }, [filteredTransactions]);
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6 animate-fade-up">
+    <div className="max-w-7xl mx-auto px-4 py-4 md:p-6 space-y-4 md:space-y-6 animate-fade-up">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex items-start justify-between gap-3 md:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Transactions</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Transactions</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
               Showing {filteredTransactions.length} of {transactions.length} transactions
             </p>
           </div>
-          <Button className="flex items-center gap-2" onClick={() => setAddDialogOpen(true)}>
+          <Button className="flex items-center gap-2 touch-target" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-4 h-4" />
-            Add Transaction
+            <span className="hidden sm:inline">Add Transaction</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
 
@@ -685,17 +696,17 @@ const createMutation = useMutation({
       {/* Filtered Totals Summary */}
       {filteredTransactions.length > 0 && (
         <div className="kpi-card bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
             {/* Total Amount */}
             <div className="flex-shrink-0 lg:min-w-[240px]">
-              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl p-6 border border-primary/20">
+              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl p-4 md:p-6 border border-primary/20">
                 <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   Filtered Total
                 </h3>
-                <p className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent currency-bhd mb-2">
+                <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent currency-bhd mb-2">
                   {filteredTotals.total.toFixed(3)}
                 </p>
                 <div className="flex items-center gap-2">
@@ -774,15 +785,28 @@ const createMutation = useMutation({
         </div>
       )}
 
-      {/* Transactions Table */}
-      <div className="kpi-card overflow-hidden">
-        <div className="overflow-x-auto">
-          {transactionsLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-4">Loading transactions...</p>
-            </div>
-          ) : (
+      {/* Transactions Table/Cards */}
+      <div className={isMobile ? "" : "kpi-card overflow-hidden"}>
+        {transactionsLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground mt-4">Loading transactions...</p>
+          </div>
+        ) : isMobile ? (
+          /* Mobile Card View */
+          <div className="space-y-3">
+            {filteredTransactions.map((transaction) => (
+              <TransactionCard
+                key={transaction.SN}
+                transaction={transaction}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        ) : (
+          /* Desktop Table View */
+          <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -1006,8 +1030,8 @@ const createMutation = useMutation({
                 })}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
 
         {filteredTransactions.length === 0 && !transactionsLoading && (
           <div className="text-center py-8">

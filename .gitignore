@@ -22,3 +22,84 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ============================================
+# SECURITY: Environment Variables
+# ============================================
+# CRITICAL: Never commit these files!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Backup of env files
+.env.backup
+.env.bak
+*.env.backup
+
+# ============================================
+# Docker & Deployment
+# ============================================
+# Docker volumes and data
+docker-compose.override.yml
+.dockerignore
+
+# Cloudflare tunnel config (if locally stored)
+.cloudflared/
+*.cloudflared
+tunnel-config.yml
+
+# SSL/TLS certificates (if any)
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# ============================================
+# Sensitive Data
+# ============================================
+# API keys, tokens, secrets
+secrets/
+*.secret
+*.token
+api-keys.txt
+
+# Database dumps
+*.sql
+*.dump
+*.db
+*.sqlite
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# ============================================
+# Build artifacts
+# ============================================
+build/
+.cache/
+.parcel-cache/
+.next/
+out/
+.nuxt/
+
+# ============================================
+# Testing
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ============================================
+# OS Files
+# ============================================
+Thumbs.db
+Desktop.ini
+.Spotlight-V100
+.Trashes

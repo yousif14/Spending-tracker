@@ -395,8 +395,10 @@ async updateTransaction(sn: string | number, transaction: Partial<Transaction>):
 }
 
 async deleteTransaction(sn: string | number): Promise<{ success: boolean; message: string }> {
-  return this.fetchWithAuth(`/delete-transaction/api/delete-transactions/${sn}`, {
+  const snNumber = typeof sn === 'string' ? parseInt(sn, 10) : sn;
+  return this.fetchWithAuth(`/delete-transaction/api/delete-transactions/${snNumber}`, {
     method: 'DELETE',
+    body: JSON.stringify({ sn: snNumber }),
   });
 }
 
