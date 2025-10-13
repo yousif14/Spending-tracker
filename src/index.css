@@ -5,7 +5,7 @@
 /* Spending Tracker Design System - Dark-first elegant theme with sophisticated gradients */
 
 @layer base {
-  :root {
+  :root, .dark {
     --background: 240 8% 6%;
     --foreground: 240 5% 98%;
 
@@ -50,33 +50,79 @@
 
     /* Design system */
     --radius: 1rem;
-    
+
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(243 80% 65%), hsl(260 75% 70%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 45%), hsl(158 76% 50%));
     --gradient-card: linear-gradient(135deg, hsl(240 6% 8%), hsl(240 6% 11%));
-    
+
     /* Shadows */
     --shadow-card: 0 4px 6px -1px hsl(240 8% 4% / 0.3), 0 2px 4px -1px hsl(240 8% 4% / 0.15);
     --shadow-glow: 0 0 24px hsl(243 80% 65% / 0.4);
-    
+
     /* Animation timing */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
+  }
 
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 10%;
+
+    /* Card system */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --card-hover: 0 0% 96%;
+
+    /* Interactive elements */
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    /* Primary brand colors */
+    --primary: 243 75% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 243 75% 65%;
+
+    /* Secondary */
+    --secondary: 270 65% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted backgrounds */
+    --muted: 240 5% 94%;
+    --muted-foreground: 240 4% 45%;
+
+    /* Accent colors */
+    --accent: 270 60% 55%;
+    --accent-foreground: 0 0% 100%;
+    --success: 142 70% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Destructive states */
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 240 6% 88%;
+    --input: 240 6% 94%;
+    --ring: 243 75% 55%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(243 75% 55%), hsl(260 70% 60%));
+    --gradient-success: linear-gradient(135deg, hsl(142 70% 40%), hsl(158 70% 45%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(240 5% 98%));
+
+    /* Shadows */
+    --shadow-card: 0 4px 6px -1px hsl(240 5% 70% / 0.15), 0 2px 4px -1px hsl(240 5% 70% / 0.1);
+    --shadow-glow: 0 0 20px hsl(243 75% 55% / 0.25);
   }
 }
 

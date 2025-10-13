@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, LayoutDashboard, Receipt, PieChart, FolderOpen, Settings, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 const navigationItems = [
@@ -29,7 +30,7 @@ export function Navigation() {
               <span className="text-lg font-bold text-foreground">11 App</span>
             </div>
 
-            {/* Navigation Links */}
+            {/* Navigation Links & Actions */}
             <div className="flex items-center gap-2">
               {navigationItems.map((item) => (
                 <NavLink
@@ -48,6 +49,9 @@ export function Navigation() {
                   {item.name}
                 </NavLink>
               ))}
+              <div className="ml-2 pl-2 border-l border-border">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>
@@ -65,15 +69,18 @@ export function Navigation() {
               <span className="text-lg font-bold text-foreground">11 App</span>
             </div>
 
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="w-10 h-10 p-0"
-            >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
+            {/* Theme Toggle & Mobile Menu Button */}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="w-10 h-10 p-0"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
+            </div>
           </div>
         </div>
 
