@@ -7,29 +7,29 @@
 @layer base {
   :root {
     --background: 240 8% 6%;
-    --foreground: 240 5% 96%;
+    --foreground: 240 5% 98%;
 
     /* Card system */
     --card: 240 6% 8%;
-    --card-foreground: 240 5% 96%;
+    --card-foreground: 240 5% 98%;
     --card-hover: 240 6% 10%;
 
     /* Interactive elements */
     --popover: 240 6% 8%;
-    --popover-foreground: 240 5% 96%;
+    --popover-foreground: 240 5% 98%;
 
     /* Primary brand colors - sophisticated blue-purple */
-    --primary: 243 75% 59%;
-    --primary-foreground: 240 5% 96%;
-    --primary-glow: 243 75% 70%;
+    --primary: 243 75% 62%;
+    --primary-foreground: 240 5% 98%;
+    --primary-glow: 243 75% 72%;
 
     /* Secondary - elegant purple accent */
-    --secondary: 240 6% 12%;
-    --secondary-foreground: 240 5% 96%;
+    --secondary: 240 6% 14%;
+    --secondary-foreground: 240 5% 98%;
 
     /* Muted backgrounds */
-    --muted: 240 6% 10%;
-    --muted-foreground: 240 4% 64%;
+    --muted: 240 6% 12%;
+    --muted-foreground: 240 4% 70%;
 
     /* Accent colors - success green and warning amber */
     --accent: 240 6% 12%;
@@ -87,6 +87,8 @@
 
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    width: 100%;
   }
 
   /* iOS Safe Area Support */
@@ -96,6 +98,16 @@
       padding-right: max(0px, env(safe-area-inset-right));
       padding-bottom: max(0px, env(safe-area-inset-bottom));
     }
+  }
+
+  /* Prevent horizontal scroll on all elements */
+  * {
+    max-width: 100%;
+  }
+
+  /* Allow specific elements to break containment when needed */
+  html, body, #root {
+    max-width: none;
   }
 }
 
@@ -108,13 +120,29 @@
   /* Mobile-optimized variant */
   @media (max-width: 768px) {
     .kpi-card {
-      @apply p-4 rounded-xl;
+      @apply p-3 rounded-xl;
     }
   }
 
   /* Touch-friendly interactive elements */
   .touch-target {
     @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+
+  /* Prevent text overflow on mobile */
+  .mobile-text-safe {
+    @apply break-words overflow-hidden;
+  }
+
+  /* Container with safe horizontal margins */
+  .mobile-container {
+    @apply w-full px-4 md:px-6;
+  }
+
+  /* Improved text contrast for readability */
+  .text-high-contrast {
+    @apply text-foreground;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
   
   .gradient-primary {
