@@ -54,8 +54,8 @@ export function Navigation() {
       </nav>
 
       {/* Mobile Navigation */}
-      <nav className="md:hidden bg-card/50 backdrop-blur-sm border-b border-border">
-        <div className="px-4">
+      <nav className="md:hidden bg-card/50 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+        <div className="px-4 pt-safe">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
