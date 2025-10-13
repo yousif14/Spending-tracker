@@ -179,14 +179,14 @@ export default function Dashboard() {
 
   /**
    * Compute summary data for charts
-   * - Top 5 categories by spending (sorted descending)
+   * - ALL categories with spending (sorted descending)
    * - Daily spending series
    * - Top 5 merchants by spending
    */
   const summary: Summary = useMemo(() => {
     const total = sortedTransactions.reduce((sum, t) => sum + t.amount, 0);
 
-    // Get top 5 categories by amount
+    // Get ALL categories with activity (not just top 5)
     const totalsByCategory = categories.map(category => ({
       category: category.name,
       amount: sortedTransactions
@@ -195,8 +195,7 @@ export default function Dashboard() {
       color: getCategoryColor(category.name),
     }))
     .filter(item => item.amount > 0)
-    .sort((a, b) => b.amount - a.amount) // Sort descending
-    .slice(0, 5); // Top 5 only
+    .sort((a, b) => b.amount - a.amount); // Sort descending, show all
 
     const dailySeries = sortedTransactions.reduce((acc, transaction) => {
       const existing = acc.find(d => d.date === transaction.date);
