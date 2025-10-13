@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Edit2, Save, XCircle, Trash2, AlertTriangle, Plus } from 'lucide-react';
+import { Search, Filter, Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Edit2, Save, XCircle, Trash2, AlertTriangle, Plus, ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,6 +101,10 @@ export default function Transactions() {
   const [isMobile, setIsMobile] = useState(false);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [categoryBreakdownCollapsed, setCategoryBreakdownCollapsed] = useState(() => {
+    const saved = localStorage.getItem('category-breakdown-collapsed');
+    return saved === 'true';
+  });
 
   // Detect mobile view
   useEffect(() => {
@@ -148,6 +152,11 @@ export default function Transactions() {
         break;
     }
   }, [sortOption]);
+
+  // Persist category breakdown collapsed state
+  useEffect(() => {
+    localStorage.setItem('category-breakdown-collapsed', String(categoryBreakdownCollapsed));
+  }, [categoryBreakdownCollapsed]);
 
   // Advanced search fields
   const [searchFilters, setSearchFilters] = useState({
@@ -796,40 +805,47 @@ const createMutation = useMutation({
 
             {/* Category Breakdown */}
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <button
+                onClick={() => setCategoryBreakdownCollapsed(!categoryBreakdownCollapsed)}
+                className="w-full text-sm font-semibold text-foreground mb-4 flex items-center gap-2 hover:text-primary transition-colors"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
                 Category Breakdown
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <ChevronDown
+                  className={`w-4 h-4 ml-auto transition-transform ${categoryBreakdownCollapsed ? '' : 'rotate-180'}`}
+                />
+              </button>
+              {!categoryBreakdownCollapsed && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                 {filteredTotals.categoryTotals.map(({ category, amount, count, color }) => {
                   const Icon = getCategoryIcon(category);
                   return (
                     <div
                       key={category}
-                      className="group relative bg-card/50 backdrop-blur-sm rounded-lg p-3 border border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
+                      className="group relative bg-card/50 backdrop-blur-sm rounded-lg p-2 md:p-3 border border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2 md:gap-3">
                         <div
-                          className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center shadow-md"
+                          className="w-8 h-8 md:w-10 md:h-10 rounded-lg flex-shrink-0 flex items-center justify-center shadow-md"
                           style={{
                             backgroundColor: color,
                             boxShadow: `0 4px 14px ${color}40`
                           }}
                         >
-                          <Icon className="w-5 h-5 text-white" />
+                          <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline justify-between gap-2 mb-1">
-                            <span className="text-sm font-semibold text-foreground truncate">{category}</span>
+                          <div className="flex items-baseline justify-between gap-1 mb-0.5 md:mb-1">
+                            <span className="text-xs md:text-sm font-semibold text-foreground truncate">{category}</span>
                           </div>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-lg font-bold text-foreground currency-bhd">
+                            <span className="text-base md:text-lg font-bold text-foreground currency-bhd">
                               {amount.toFixed(3)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1 md:gap-1.5 mt-0.5 md:mt-1">
                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
                             <span className="text-xs text-muted-foreground">
                               {count} txn{count !== 1 ? 's' : ''}
@@ -855,6 +871,7 @@ const createMutation = useMutation({
                   );
                 })}
               </div>
+              )}
             </div>
           </div>
         </div>
