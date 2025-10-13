@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { DateRangeSelector } from '@/components/DateRangeSelector';
 import { TransactionCard } from '@/components/transactions/TransactionCard';
 import { TransactionEditSheet } from '@/components/transactions/TransactionEditSheet';
+import { SortControl, SortOption } from '@/components/transactions/SortControl';
 import { apiClient } from '@/lib/api';
 import { Transaction } from '@/types';
 import { getCurrentPeriodWindow, combineDateTime, DateRangeConfig, buildRange } from '@/utils/period';
@@ -73,6 +74,15 @@ export default function Transactions() {
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>('txnAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortOption, setSortOption] = useState<SortOption>(() => {
+    // Try to get from URL first, then localStorage, then default
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSort = urlParams.get('sort') as SortOption;
+    if (urlSort) return urlSort;
+
+    const savedSort = localStorage.getItem('txn-sort');
+    return (savedSort as SortOption) || 'date-desc';
+  });
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -99,6 +109,45 @@ export default function Transactions() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Sync sortOption with URL and localStorage
+  useEffect(() => {
+    // Update URL
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sortOption);
+    window.history.replaceState({}, '', url.toString());
+
+    // Update localStorage
+    localStorage.setItem('txn-sort', sortOption);
+
+    // Update old sortField/sortDirection for compatibility
+    switch (sortOption) {
+      case 'date-desc':
+        setSortField('txnAt');
+        setSortDirection('desc');
+        break;
+      case 'date-asc':
+        setSortField('txnAt');
+        setSortDirection('asc');
+        break;
+      case 'amount-desc':
+        setSortField('amount');
+        setSortDirection('desc');
+        break;
+      case 'amount-asc':
+        setSortField('amount');
+        setSortDirection('asc');
+        break;
+      case 'category-asc':
+        setSortField('category');
+        setSortDirection('asc');
+        break;
+      case 'category-desc':
+        setSortField('category');
+        setSortDirection('desc');
+        break;
+    }
+  }, [sortOption]);
 
   // Advanced search fields
   const [searchFilters, setSearchFilters] = useState({
@@ -808,6 +857,17 @@ const createMutation = useMutation({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Sort Control */}
+      {filteredTransactions.length > 0 && (
+        <div className="mb-4">
+          <SortControl
+            value={sortOption}
+            onChange={setSortOption}
+            isMobile={isMobile}
+          />
         </div>
       )}
 
