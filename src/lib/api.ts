@@ -315,9 +315,15 @@ class ApiClient {
     const toDate = new Date(to);
     const daysInWindow = 1 + Math.floor((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
 
+    // Get current date in Asia/Bahrain timezone
+    const nowInBahrain = new Date().toLocaleString('en-US', { timeZone: 'Asia/Bahrain' });
+    const today = new Date(nowInBahrain);
+
+    // Normalize today to start of day for comparison
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
     // Calculate days elapsed: min(today, to) - from + 1
-    const today = new Date();
-    const effectiveEndDate = today < toDate ? today : toDate;
+    const effectiveEndDate = todayDateOnly < toDate ? todayDateOnly : toDate;
     const daysElapsed = Math.max(1,
       1 + Math.floor((effectiveEndDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24))
     );

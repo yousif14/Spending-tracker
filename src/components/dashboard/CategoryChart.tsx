@@ -35,71 +35,97 @@ export function CategoryChart({ data }: CategoryChartProps) {
       radius: minRadius + (maxRadius - minRadius) * Math.sqrt(item.amount / maxAmount),
     }));
 
-    // Simple circle packing algorithm - arrange in a grid-like pattern
+    // Deterministic circle-packing algorithm
     const width = 400;
     const height = 320;
     const positioned: BubbleData[] = [];
+    const padding = 5; // Spacing between bubbles
 
     // Sort by size (largest first) for better packing
     const sorted = [...bubblesWithRadius].sort((a, b) => b.radius - a.radius);
 
-    sorted.forEach((bubble, index) => {
-      let placed = false;
-      let attempts = 0;
-      const maxAttempts = 100;
+    // Helper function to check if a position is valid (no overlaps)
+    const isValidPosition = (x: number, y: number, radius: number): boolean => {
+      return positioned.every(other => {
+        const dx = x - other.x;
+        const dy = y - other.y;
+        const minDist = radius + other.radius + padding;
+        return Math.sqrt(dx * dx + dy * dy) >= minDist;
+      });
+    };
 
-      while (!placed && attempts < maxAttempts) {
-        // Start from center and spiral outward
-        const angle = (index * 137.5) * (Math.PI / 180); // Golden angle
-        const distance = Math.sqrt(index) * 40;
-
-        const x = width / 2 + distance * Math.cos(angle);
-        const y = height / 2 + distance * Math.sin(angle);
-
-        // Check if this position overlaps with existing bubbles
-        const overlaps = positioned.some(other => {
-          const dx = x - other.x;
-          const dy = y - other.y;
-          const minDist = bubble.radius + other.radius + 5; // 5px padding
-          return Math.sqrt(dx * dx + dy * dy) < minDist;
-        });
-
-        // Check boundaries
-        const inBounds =
-          x - bubble.radius > 10 &&
-          x + bubble.radius < width - 10 &&
-          y - bubble.radius > 10 &&
-          y + bubble.radius < height - 10;
-
-        if (!overlaps && inBounds) {
-          positioned.push({
-            category: bubble.category,
-            amount: bubble.amount,
-            color: bubble.color,
-            radius: bubble.radius,
-            x,
-            y,
-          });
-          placed = true;
-        }
-
-        attempts++;
+    // Helper function to find the closest valid position to a target
+    const findClosestPosition = (targetX: number, targetY: number, radius: number): { x: number; y: number } | null => {
+      // Try the target position first
+      if (isValidPosition(targetX, targetY, radius)) {
+        return { x: targetX, y: targetY };
       }
 
-      // Fallback positioning if packing fails
-      if (!placed) {
-        const fallbackX = (index % 3) * (width / 3) + width / 6;
-        const fallbackY = Math.floor(index / 3) * 100 + 60;
+      // Search in expanding circles around the target
+      const searchRadius = 10;
+      const maxSearchDistance = Math.max(width, height);
+
+      for (let distance = searchRadius; distance <= maxSearchDistance; distance += searchRadius) {
+        // Try 16 points around the circle at this distance
+        for (let i = 0; i < 16; i++) {
+          const angle = (i / 16) * 2 * Math.PI;
+          const x = targetX + distance * Math.cos(angle);
+          const y = targetY + distance * Math.sin(angle);
+
+          if (isValidPosition(x, y, radius)) {
+            return { x, y };
+          }
+        }
+      }
+
+      return null;
+    };
+
+    // Pack bubbles from largest to smallest
+    sorted.forEach((bubble, index) => {
+      let position: { x: number; y: number } | null = null;
+
+      if (index === 0) {
+        // Place the largest bubble at the center
+        position = { x: width / 2, y: height / 2 };
+      } else {
+        // Try to place near the center of mass of existing bubbles
+        const centerX = positioned.reduce((sum, b) => sum + b.x, 0) / positioned.length;
+        const centerY = positioned.reduce((sum, b) => sum + b.y, 0) / positioned.length;
+
+        position = findClosestPosition(centerX, centerY, bubble.radius);
+      }
+
+      if (position) {
         positioned.push({
           category: bubble.category,
           amount: bubble.amount,
           color: bubble.color,
-          radius: Math.min(bubble.radius, 30),
-          x: fallbackX,
-          y: fallbackY,
+          radius: bubble.radius,
+          x: position.x,
+          y: position.y,
         });
       }
     });
+
+    // Center the entire layout by calculating bounds and shifting
+    if (positioned.length > 0) {
+      const minX = Math.min(...positioned.map(b => b.x - b.radius));
+      const maxX = Math.max(...positioned.map(b => b.x + b.radius));
+      const minY = Math.min(...positioned.map(b => b.y - b.radius));
+      const maxY = Math.max(...positioned.map(b => b.y + b.radius));
+
+      const layoutWidth = maxX - minX;
+      const layoutHeight = maxY - minY;
+
+      const shiftX = (width - layoutWidth) / 2 - minX;
+      const shiftY = (height - layoutHeight) / 2 - minY;
+
+      positioned.forEach(bubble => {
+        bubble.x += shiftX;
+        bubble.y += shiftY;
+      });
+    }
 
     return positioned;
   }, [data]);
@@ -127,7 +153,22 @@ export function CategoryChart({ data }: CategoryChartProps) {
         >
           {bubbles.map((bubble, index) => {
             const isHovered = hoveredBubble === bubble.category;
-            const showLabel = bubble.radius > 35 || isHovered;
+
+            // Estimate text width (rough approximation: 6px per character for 10px font)
+            const categoryText = bubble.category.length > 12
+              ? bubble.category.substring(0, 10) + '...'
+              : bubble.category;
+            const percentText = `${percentage(bubble.amount)}%`;
+
+            // Estimate if text fits within circle (with some padding)
+            const fontSize = bubble.radius > 50 ? 12 : 10;
+            const estimatedTextWidth = Math.max(
+              categoryText.length * (fontSize * 0.6),
+              percentText.length * (fontSize * 0.6)
+            );
+            const textFitsInCircle = estimatedTextWidth < bubble.radius * 1.6; // Diameter with padding
+
+            const showLabel = (textFitsInCircle && bubble.radius > 35) || isHovered;
 
             return (
               <g key={bubble.category}>
@@ -147,8 +188,8 @@ export function CategoryChart({ data }: CategoryChartProps) {
                   onTouchStart={() => setHoveredBubble(bubble.category)}
                 />
 
-                {/* Label for larger bubbles */}
-                {showLabel && (
+                {/* Label for bubbles with sufficient space */}
+                {showLabel && textFitsInCircle && (
                   <>
                     <text
                       x={bubble.x}
@@ -160,9 +201,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
                         fontSize: bubble.radius > 50 ? '12px' : '10px'
                       }}
                     >
-                      {bubble.category.length > 12
-                        ? bubble.category.substring(0, 10) + '...'
-                        : bubble.category}
+                      {categoryText}
                     </text>
                     <text
                       x={bubble.x}
@@ -174,7 +213,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
                         fontSize: bubble.radius > 50 ? '11px' : '9px'
                       }}
                     >
-                      {percentage(bubble.amount)}%
+                      {percentText}
                     </text>
                   </>
                 )}
