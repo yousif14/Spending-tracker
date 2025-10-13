@@ -89,6 +89,10 @@ build/
 out/
 .nuxt/
 
+# Generated PWA icons (built from home.png)
+public/icon-*.png
+public/apple-touch-icon*.png
+
 # ============================================
 # Testing
 # ============================================
