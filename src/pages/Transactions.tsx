@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DateRangeSelector } from '@/components/DateRangeSelector';
 import { TransactionCard } from '@/components/transactions/TransactionCard';
+import { TransactionEditSheet } from '@/components/transactions/TransactionEditSheet';
 import { apiClient } from '@/lib/api';
 import { Transaction } from '@/types';
 import { getCurrentPeriodWindow, combineDateTime, DateRangeConfig, buildRange } from '@/utils/period';
@@ -88,6 +89,8 @@ export default function Transactions() {
     tag: '',
   });
   const [isMobile, setIsMobile] = useState(false);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
   // Detect mobile view
   useEffect(() => {
@@ -186,16 +189,34 @@ export default function Transactions() {
 
   // Handle edit start
   const handleEdit = (transaction: Transaction) => {
-    setEditingId(transaction.id.toString());
-    setEditForm({
-      date: transaction.date,
-      time: transaction.time,
-      merchant: transaction.merchant,
-      amount: transaction.amount,
-      category: transaction.category,
-      tag: transaction.tag,
-      cardEnding: transaction.cardEnding,
-    });
+    if (isMobile) {
+      // Open edit sheet on mobile
+      setTransactionToEdit(transaction);
+      setEditSheetOpen(true);
+    } else {
+      // Inline editing on desktop
+      setEditingId(transaction.id.toString());
+      setEditForm({
+        date: transaction.date,
+        time: transaction.time,
+        merchant: transaction.merchant,
+        amount: transaction.amount,
+        category: transaction.category,
+        tag: transaction.tag,
+        cardEnding: transaction.cardEnding,
+      });
+    }
+  };
+
+  // Handle edit sheet save
+  const handleEditSheetSave = (sn: string, data: Partial<Transaction>) => {
+    updateMutation.mutate({ sn, data });
+  };
+
+  // Handle edit sheet close
+  const handleEditSheetClose = () => {
+    setEditSheetOpen(false);
+    setTransactionToEdit(null);
   };
 
   // Handle save
@@ -270,6 +291,11 @@ const updateMutation = useMutation({
     queryClient.invalidateQueries({ queryKey: ['transactions'] });
     setEditingId(null);
     setEditForm({});
+    // Close edit sheet if open
+    if (editSheetOpen) {
+      setEditSheetOpen(false);
+      setTransactionToEdit(null);
+    }
   },
 });
 
@@ -1238,6 +1264,16 @@ const createMutation = useMutation({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Edit Sheet */}
+      <TransactionEditSheet
+        transaction={transactionToEdit}
+        categories={categories}
+        isOpen={editSheetOpen}
+        onClose={handleEditSheetClose}
+        onSave={handleEditSheetSave}
+        isSaving={updateMutation.isPending}
+      />
     </div>
   );
 }
