@@ -2,66 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Spending Tracker Design System - Dark-first elegant theme with sophisticated gradients */
+/* FA — Calm Ledger design tokens (P4) */
 
 @layer base {
   :root, .dark {
-    --background: 240 8% 6%;
-    --foreground: 240 5% 98%;
+    /* Calm Ledger — dark */
+    --background: 150 14% 7%;      /* #101513 */
+    --foreground: 150 12% 91%;     /* #E6ECE9 */
+    --card: 156 13% 11%;           /* #18201D */
+    --card-foreground: 150 12% 91%;
+    --card-hover: 156 13% 13%;
+    --popover: 156 13% 11%;
+    --popover-foreground: 150 12% 91%;
+    --primary: 162 54% 54%;        /* #4CC9A4 */
+    --primary-foreground: 150 14% 7%;
+    --primary-glow: 162 54% 54%;
+    --secondary: 158 11% 18%;
+    --secondary-foreground: 150 12% 91%;
+    --muted: 158 11% 16%;
+    --muted-foreground: 155 9% 63%; /* #9AABA4 */
+    --accent: 160 25% 18%;
+    --accent-foreground: 162 54% 70%;
+    --success: 162 54% 54%;
+    --success-foreground: 150 14% 7%;
+    --warning: 39 75% 55%;
+    --warning-foreground: 150 14% 7%;
+    --destructive: 4 60% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 158 10% 19%;         /* #2A3531 */
+    --input: 158 10% 17%;
+    --ring: 162 54% 54%;
+    --radius: 0.875rem;
 
-    /* Card system */
-    --card: 240 6% 8%;
-    --card-foreground: 240 5% 98%;
-    --card-hover: 240 6% 10%;
-
-    /* Interactive elements */
-    --popover: 240 6% 8%;
-    --popover-foreground: 240 5% 98%;
-
-    /* Primary brand colors - vibrant indigo */
-    --primary: 243 80% 65%;
-    --primary-foreground: 240 5% 98%;
-    --primary-glow: 243 80% 75%;
-
-    /* Secondary - vibrant purple accent */
-    --secondary: 270 70% 55%;
-    --secondary-foreground: 240 5% 98%;
-
-    /* Muted backgrounds */
-    --muted: 240 6% 13%;
-    --muted-foreground: 240 5% 75%;
-
-    /* Accent colors - vibrant success green and warning amber */
-    --accent: 270 60% 50%;
-    --accent-foreground: 240 5% 98%;
-    --success: 142 76% 45%;
-    --success-foreground: 240 5% 98%;
-    --warning: 38 92% 55%;
-    --warning-foreground: 240 8% 6%;
-
-    /* Destructive states */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 240 5% 96%;
-
-    /* Borders and inputs */
-    --border: 240 6% 16%;
-    --input: 240 6% 12%;
-    --ring: 243 80% 65%;
-
-    /* Design system */
-    --radius: 1rem;
-
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(243 80% 65%), hsl(260 75% 70%));
-    --gradient-success: linear-gradient(135deg, hsl(142 76% 45%), hsl(158 76% 50%));
-    --gradient-card: linear-gradient(135deg, hsl(240 6% 8%), hsl(240 6% 11%));
-
-    /* Shadows */
-    --shadow-card: 0 4px 6px -1px hsl(240 8% 4% / 0.3), 0 2px 4px -1px hsl(240 8% 4% / 0.15);
-    --shadow-glow: 0 0 24px hsl(243 80% 65% / 0.4);
-
-    /* Animation timing */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* legacy names kept flat for the old (unrouted) pages until P5 removes them */
+    --gradient-primary: hsl(var(--primary));
+    --gradient-success: hsl(var(--success));
+    --gradient-card: hsl(var(--card));
+    --shadow-card: 0 1px 2px hsl(150 14% 3% / 0.25);
+    --shadow-glow: var(--shadow-card);
+    --transition-smooth: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -73,58 +52,41 @@
   }
 
   .light {
-    --background: 0 0% 98%;
-    --foreground: 240 10% 10%;
-
-    /* Card system */
+    /* Calm Ledger — light */
+    --background: 90 9% 96%;       /* #F6F7F4 */
+    --foreground: 157 13% 13%;     /* #1C2421 */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
-    --card-hover: 0 0% 96%;
-
-    /* Interactive elements */
+    --card-foreground: 157 13% 13%;
+    --card-hover: 90 9% 98%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
-
-    /* Primary brand colors */
-    --primary: 243 75% 55%;
+    --popover-foreground: 157 13% 13%;
+    --primary: 164 78% 27%;        /* #0F7B62 */
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 243 75% 65%;
-
-    /* Secondary */
-    --secondary: 270 65% 50%;
-    --secondary-foreground: 0 0% 100%;
-
-    /* Muted backgrounds */
-    --muted: 240 5% 94%;
-    --muted-foreground: 240 4% 45%;
-
-    /* Accent colors */
-    --accent: 270 60% 55%;
-    --accent-foreground: 0 0% 100%;
-    --success: 142 70% 40%;
+    --primary-glow: 164 78% 27%;
+    --secondary: 150 9% 90%;
+    --secondary-foreground: 157 13% 13%;
+    --muted: 150 9% 90%;
+    --muted-foreground: 160 6% 43%; /* #66746F */
+    --accent: 160 30% 92%;
+    --accent-foreground: 164 78% 22%;
+    --success: 164 78% 27%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 10%;
-
-    /* Destructive states */
-    --destructive: 0 84% 55%;
+    --warning: 39 75% 45%;         /* #C98A1B */
+    --warning-foreground: 0 0% 100%;
+    --destructive: 4 52% 50%;      /* #C2453D */
     --destructive-foreground: 0 0% 100%;
+    --border: 150 9% 90%;          /* #E3E8E5 */
+    --input: 150 9% 88%;
+    --ring: 164 78% 27%;
 
-    /* Borders and inputs */
-    --border: 240 6% 88%;
-    --input: 240 6% 94%;
-    --ring: 243 75% 55%;
-
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(243 75% 55%), hsl(260 70% 60%));
-    --gradient-success: linear-gradient(135deg, hsl(142 70% 40%), hsl(158 70% 45%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(240 5% 98%));
-
-    /* Shadows */
-    --shadow-card: 0 4px 6px -1px hsl(240 5% 70% / 0.15), 0 2px 4px -1px hsl(240 5% 70% / 0.1);
-    --shadow-glow: 0 0 20px hsl(243 75% 55% / 0.25);
+    --gradient-primary: hsl(var(--primary));
+    --gradient-success: hsl(var(--success));
+    --gradient-card: hsl(var(--card));
+    --shadow-card: 0 1px 2px hsl(157 13% 13% / 0.04);
+    --shadow-glow: var(--shadow-card);
   }
 }
+
 
 @layer base {
   * {
@@ -132,7 +94,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
     overflow-x: hidden;
     width: 100%;
   }
@@ -166,6 +128,17 @@
   /* Prevent horizontal scroll on all elements */
   * {
     max-width: 100%;
+  }
+
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   /* Allow specific elements to break containment when needed */
@@ -205,7 +178,6 @@
   /* Improved text contrast for readability */
   .text-high-contrast {
     @apply text-foreground;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
   
   .gradient-primary {
