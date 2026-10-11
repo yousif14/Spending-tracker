@@ -28,10 +28,10 @@ export default defineConfig(({ mode }) => {
       mode === "development" && componentTagger(),
       VitePWA({
         registerType: "autoUpdate",
-        includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+        includeAssets: ["favicon.ico", "icon.svg", "apple-touch-icon.png"],
         manifest: {
           name: "FA Spending", short_name: "FA", start_url: "/", display: "standalone",
-          background_color: "#F6F7F4", theme_color: "#0F7B62",
+          background_color: "#0F7B62", theme_color: "#0F7B62",
           icons: [
             { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
             { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
