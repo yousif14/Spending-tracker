@@ -6,10 +6,10 @@ import { PeriodProvider } from "@/state/period";
 import { AppShell } from "@/components/fa/AppShell";
 import Overview from "@/pages/fa/Overview";
 import Activity from "@/pages/fa/Activity";
-import Placeholder from "@/pages/fa/Placeholder";
 import Categories from "@/pages/fa/Categories";
 import Stats from "@/pages/fa/Stats";
 import Budgets from "@/pages/fa/Budgets";
+import Settings from "@/pages/fa/Settings";
 import NotFound from "@/pages/NotFound";
 
 // The QueryClient lives in main.tsx (QueryProvider). Old Lovable pages stay on disk until P5 but are no longer routed.
@@ -27,7 +27,7 @@ export default function App() {
                 <Route path="/stats" element={<Stats />} />
                 <Route path="/budgets" element={<Budgets />} />
                 <Route path="/categories" element={<Categories />} />
-                <Route path="/settings" element={<Placeholder title="Settings" />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
