@@ -24,8 +24,8 @@ export default function Activity() {
   const { range } = usePeriod();
   const [params] = useSearchParams();
   const [filter, setFilter] = useState<TxFilter>(() => {
-    const cat = params.get('cat');
-    return cat ? { ...EMPTY_FILTER, categories: [cat] } : EMPTY_FILTER;
+    const cat = params.get('cat'), q = params.get('q');
+    return { ...EMPTY_FILTER, categories: cat ? [cat] : [], search: q ?? '' };
   });
   const [editing, setEditing] = useState<Tx | null>(null);
   const [limit, setLimit] = useState(PAGE);
