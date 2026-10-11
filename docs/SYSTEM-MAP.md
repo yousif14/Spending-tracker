@@ -28,20 +28,30 @@ React PWA (this repo)  ──fetch https://n8n.11homelab.cc/webhook/...──►
 | Column | Type | Notes |
 |---|---|---|
 | `SN` | number | Business key used everywhere. Generated as `YYYYMMDDHHMMSS` + 2–3 random digits (e.g. `2026101022482000`). |
-| `Date` | string | **Mixed formats.** About 1,170 rows are `YYYY-MM-DD` (new); about 955 rows are `DD/MM/YYYY` (old Google Sheets import). The frontend's `convertDateFormat` normalises them. |
-| `Time` | string | `HH:MM`, `HH:MM:SS`, or empty (~460 rows). |
+| `Date` | string | `YYYY-MM-DD` for every row since the P1 migration (2026-10-11). The old `DD/MM/YYYY` rows came from the Google Sheets import. |
+| `Time` | string | `HH:MM`, or empty (~460 old Fawri rows). |
 | `Merchant` | string | Upper-cased by the SMS parser. Manual entries keep the user's casing. |
 | `Amount` | number | Always BHD; foreign currency is converted on ingest with static rates. |
 | `Currency` | string | Always `BHD` in practice. |
-| `Category` | string | Free text, matched to Cat-list. Inconsistent case/spelling: `other`/`Other`, `Luandry`, `Patrol` (= petrol), `Fawri+`. |
+| `Category` | string | Free text, matched to Cat-list; names come from the `Categories` table. Typos (`Luandry`, `Patrol`, `other`, `Fawri+`) were cleaned in P1. |
 | `Tag` | string | Mostly null/empty; trip tags such as `Korea`, `Qatar`. |
 | `Name` | string | Cardholder from SMS (`YUSUF`, `FATEMA`), `Card`, `Benefit`, or `-` for manual entries. |
 | `Card_ending` | string | Last 4 digits. |
+| `Payee_IBAN` | string | Fawri+ only: last 4 of the payee IBAN (`0000` = paid by phone number). Drives merchant suggestions. Added P1, filled from P2. |
+| `Source` | string | `sms`, `fawri` or `manual`. Backfilled in P1; set on ingest from P2. |
 | `id`, `createdAt`, `updatedAt` | system | n8n's internal row id, which the dedupe workflow uses. |
 
 ### `Cat-list`: id `IGDY61HhMcKpjvDT` (~960 rows)
 
-`Merchant` (string), `Category` (string), `Color` (string, almost always null). This is the merchant → category memory. The ingest flow uses it to auto-categorise, and a new row is added when the user picks a category for an unknown merchant. The distinct `Category` values here are what the app treats as "the categories".
+`Merchant` (string), `Category` (string), `Color` (string, almost always null). This is the merchant → category memory. The ingest flow uses it to auto-categorise, and a new row is added when the user picks a category for an unknown merchant. The distinct `Category` values here are what the app treats as "the categories" (until P4/P5 move the app to `Categories`).
+
+### `Categories`: id `P1PIMlK712Jbj1Mz` (20 rows, created P1)
+
+`Name`, `Color`, `Icon` (lucide name), `Budget`, `Order`, `Active`. The Telegram category picker is built from the active rows, sorted by `Order`; ➕ New category adds a row (Order 999).
+
+### `Settings`: id `Sh3QPvjfSEqmCi9a` (created P1)
+
+`Key`, `Value`. Holds `total_budget` = 600.
 
 ## 3. Webhook API (what the app calls)
 
@@ -83,13 +93,17 @@ Note that the Docker nginx config proxies `/api/* → n8n /webhook/api/*`, but t
 
 1. `POST /webhook/addNewTransaction` with `{ msg: "<bank SMS text>" }` (from an iPhone Shortcut).
 2. Message check: the text must contain `BHD`, `card`, or `IBAN ending`. Otherwise Telegram replies "🔴 Please check the copied msg".
-3. **Parse (Code):** a regex pulls out date (`YYYY/MM/DD` or `on DD/MM`), time, `for XXX 12.345` amount and currency, `Dear NAME`, the merchant after `at …`, and the card's last 4. It also generates `SN`. `Fawri…` messages get merchant `FAWRI_PENDING`.
+3. **Parse (Code):** generated from `n8n/code/sms-parser.js` (edit there, then re-run `n8n/workflows/p2-add-transaction.mjs`). Pulls out date, time, amount and currency, `Dear NAME`, the merchant after `at …`, the card's last 4, and for Fawri+ the payee IBAN last 4. It also generates `SN`. `Fawri…` messages get merchant `FAWRI_PENDING`.
+   - **Is Incoming?** Fawri+ "received from IBAN" messages only get a "💸 Incoming payment … Not logged" note; no row is stored.
 4. **Currency → BHD** using static rates (USD .377, SAR .1005, AED .102, …).
-5. **Insert** the row (no category yet).
-6. If it's Fawri, Telegram asks for the merchant name with a force-reply. The user's reply arrives at the Telegram trigger, which updates the `FAWRI_PENDING` row, then the flow continues.
+5. **Insert** the row (no category yet), including `Payee_IBAN` and `Source`.
+6. If it's Fawri: load Fawri history + Cat-list → **Suggest Merchants** (`n8n/code/suggest.js`: same IBAN first, then amount, time of day, recency) → the "Fawri Payment Detected!" message with an IBAN line and up to 3 merchant buttons (`fm|<SN>|<Cat-list id>`) plus `✏️ Other…` (`fo|<SN>`).
+   - A pick writes the merchant by SN and continues at step 7.
+   - Other… sends the old force-reply prompt. A reply carrying `Transaction ID:` sets that SN; a plain message with no reply falls back to the first `FAWRI_PENDING` row (pre-P2 behaviour).
 7. **Cat-list lookup** with normalised merchant matching (strips `BH-123`, `BAHRAIN`, the `TALABAT*` prefix, and so on).
    - Found: the row's `Category` is set.
-   - Not found: Telegram sends an inline keyboard of categories (`callback_data = cat_select|<Category>|<SN>`). The callback sets the category, adds the merchant to Cat-list, and updates the row.
+   - Not found: Telegram sends an inline keyboard built from `Categories` (`cat_select|<Category>|<SN>`) plus `➕ New category` (`cat_new|<SN>`). A pick sets the category, adds the merchant to Cat-list, and updates the row. New category asks for a name by force-reply, upserts it into `Categories`, then continues like a pick.
+   - Router: "right callback OR msg authinticate" sets `msg` to `categoryInput`, `fawriPick`, `fawriOther`, `catNew`, `newCategoryName` or `MerchantInput`; `Switch` has one output per kind (the old `If` gate is disconnected).
 8. Telegram sends "🟢 Logged Successfully", then the dedupe sub-workflow runs.
 
 Telegram chat id is `1804897276`. The trigger node `combined-telegram-trigger` handles both `message` and `callback_query`.
@@ -101,10 +115,10 @@ Telegram chat id is `1804897276`. The trigger node `combined-telegram-trigger` h
    - It only updates transactions whose `Category` equals the merchant's *old* Cat-list category.
    - Cat-list lookup is an exact string match. Merchants missing from Cat-list (e.g. manual entries) return "Merchant not found".
 2. **The whole table goes to the browser on every load** (~2.1k rows and growing). All filtering, stats, and budget maths run client-side.
-3. **Mixed `Date` formats** in storage. Anything reading the table directly (n8n code, Joseph, SQL-like filters) must handle both `YYYY-MM-DD` and `DD/MM/YYYY`.
-4. **Category hygiene:** `other` vs `Other`, the `Luandry` typo, `Patrol`, and `Fawri+` used as a category. Category colours come from `src/utils/categoryColors.ts`, not from Cat-list `Color`.
+3. ~~Mixed `Date` formats~~ fixed in P1: all rows are ISO. Joseph's finance code still accepts both.
+4. Category typos were fixed in P1. Category colours in the app still come from `src/utils/categoryColors.ts`, not from `Categories.Color` (P5).
 5. **No auth** on any webhook. Anyone with the URL can read, edit, or delete transactions.
-6. **A Telegram bot token is hard-coded** in the URL of FA - add transaction's "Ask for Category" HTTP node. Move it to a credential and rotate it.
+6. The FA bot token now lives in n8n's environment (`FA_TG_BOT_TOKEN` in `C:\Data\n8n\.env`, `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`); HTTP Telegram nodes use `{{ $env.FA_TG_BOT_TOKEN }}`. Old workflow versions in n8n's history still contain it, so **rotate it** (BotFather `/revoke`, then update `.env` and the "Spending Tracker" credential).
 7. The Dedupe key ignores `Card_ending`, so two identical purchases in the same minute collapse into one.
 8. Budget is hard-coded in the frontend: `DEFAULT_TOTAL_BUDGET = 600` in `Budget.tsx`, and a default of 750 in stats. The `budgets` concept doesn't exist in n8n.
 9. Fiscal month runs from the 23rd to the 22nd (`src/utils/period.ts`, `getCurrentPeriodWindow`). The localStorage key is `txnRange:v1`.
