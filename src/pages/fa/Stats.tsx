@@ -53,7 +53,10 @@ export default function Stats() {
     const trend = rows.map(r => {
       const out: Record<string, number | string> = { label: r.label, total: r.total };
       let rest = 0;
-      for (const [k, v] of Object.entries(r)) if (k !== 'label' && k !== 'total') top.includes(k) ? (out[k] = v) : (rest += v as number);
+      for (const [k, v] of Object.entries(r)) {
+        if (k === 'label' || k === 'total') continue;
+        if (top.includes(k)) out[k] = v; else rest += v as number;
+      }
       out[REST] = Math.round(rest * 1000) / 1000;
       return out;
     });
