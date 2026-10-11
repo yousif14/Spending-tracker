@@ -2,20 +2,14 @@ version: "3.8"
 
 services:
   financial-app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     container_name: financial-app
     restart: always
     networks:
       - n8n-net
     environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
-      - VITE_N8N_API_KEY=${VITE_N8N_API_KEY}
-      - VITE_DEFAULT_FROM=${VITE_DEFAULT_FROM}
-      - VITE_DEFAULT_TO=${VITE_DEFAULT_TO}
       - TZ=${TZ}
       - FA_API_KEY=${FA_API_KEY}
     ports:

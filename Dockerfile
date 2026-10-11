@@ -1,4 +1,4 @@
-# Multi-stage build for Lovable React App
+# Multi-stage build: Vite app → nginx (the /api/fa proxy adds the key server-side)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -11,10 +11,6 @@ RUN npm ci
 
 # Copy source code
 COPY . .
-
-# Build the app with your n8n domain
-ARG VITE_API_BASE_URL=https://n8n.11homelab.cc
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 RUN npm run build
 
