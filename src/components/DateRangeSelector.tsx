@@ -56,31 +56,73 @@ export function DateRangeSelector({ value, onChange, storageKey = 'txnRange:v1' 
     setShowCustom(false);
   };
 
-  // Handle month navigation
-  const handlePrevMonth = () => {
-    if (value.mode !== 'fiscal' || !value.month || !value.year) return;
+  // Handle navigation (Prev/Next)
+  const handlePrev = () => {
+    if (value.mode === 'fiscal' && value.month && value.year) {
+      // Move by 1 month
+      const prevMonth = value.month === 1 ? 12 : value.month - 1;
+      const prevYear = value.month === 1 ? value.year - 1 : value.year;
 
-    const prevMonth = value.month === 1 ? 12 : value.month - 1;
-    const prevYear = value.month === 1 ? value.year - 1 : value.year;
+      onChange({
+        mode: 'fiscal',
+        month: prevMonth,
+        year: prevYear,
+      });
+    } else if (value.mode === 'last3months') {
+      // Move by 3 months
+      const current = getCurrentPeriodWindow();
+      let newMonth = current.month - 3;
+      let newYear = current.year;
 
-    onChange({
-      mode: 'fiscal',
-      month: prevMonth,
-      year: prevYear,
-    });
+      // Handle year rollover
+      while (newMonth <= 0) {
+        newMonth += 12;
+        newYear -= 1;
+      }
+
+      onChange({
+        mode: 'fiscal',
+        month: newMonth,
+        year: newYear,
+      });
+    }
   };
 
-  const handleNextMonth = () => {
-    if (value.mode !== 'fiscal' || !value.month || !value.year) return;
+  const handleNext = () => {
+    if (value.mode === 'fiscal' && value.month && value.year) {
+      // Move by 1 month
+      const nextMonth = value.month === 12 ? 1 : value.month + 1;
+      const nextYear = value.month === 12 ? value.year + 1 : value.year;
 
-    const nextMonth = value.month === 12 ? 1 : value.month + 1;
-    const nextYear = value.month === 12 ? value.year + 1 : value.year;
+      onChange({
+        mode: 'fiscal',
+        month: nextMonth,
+        year: nextYear,
+      });
+    } else if (value.mode === 'last3months') {
+      // Move by 3 months
+      const current = getCurrentPeriodWindow();
+      let newMonth = current.month + 3;
+      let newYear = current.year;
 
-    onChange({
-      mode: 'fiscal',
-      month: nextMonth,
-      year: nextYear,
-    });
+      // Handle year rollover
+      while (newMonth > 12) {
+        newMonth -= 12;
+        newYear += 1;
+      }
+
+      onChange({
+        mode: 'fiscal',
+        month: newMonth,
+        year: newYear,
+      });
+    }
+  };
+
+  // Handle last 3 months mode
+  const handleLast3Months = () => {
+    onChange({ mode: 'last3months' });
+    setShowCustom(false);
   };
 
   // Handle all time mode
@@ -127,6 +169,10 @@ export function DateRangeSelector({ value, onChange, storageKey = 'txnRange:v1' 
     if (value.mode === 'custom' && value.from && value.to) {
       return `${value.from} → ${value.to}`;
     }
+    if (value.mode === 'last3months') {
+      const range = buildRange(value);
+      return `Last 3 Months (${range.from} → ${range.to})`;
+    }
     if (value.mode === 'fiscal' && value.month && value.year) {
       const window = getPeriodWindow(value.year, value.month);
       return `Month ${value.month} (${window.from} → ${window.to})`;
@@ -154,11 +200,11 @@ export function DateRangeSelector({ value, onChange, storageKey = 'txnRange:v1' 
           Prev
         </Button>
         <Button
-          variant="outline"
+          variant={value.mode === 'last3months' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => handleQuickMode('next')}
+          onClick={handleLast3Months}
         >
-          Next
+          Last 3 Months
         </Button>
         <Button
           variant={value.mode === 'all' ? 'default' : 'outline'}
@@ -176,13 +222,13 @@ export function DateRangeSelector({ value, onChange, storageKey = 'txnRange:v1' 
         </Button>
       </div>
 
-      {/* Month Navigator (for fiscal mode) */}
-      {value.mode === 'fiscal' && !showCustom && (
+      {/* Period Navigator (for fiscal and last3months mode) */}
+      {(value.mode === 'fiscal' || value.mode === 'last3months') && !showCustom && (
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handlePrevMonth}
+            onClick={handlePrev}
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -192,7 +238,7 @@ export function DateRangeSelector({ value, onChange, storageKey = 'txnRange:v1' 
           <Button
             variant="outline"
             size="sm"
-            onClick={handleNextMonth}
+            onClick={handleNext}
           >
             <ChevronRight className="w-4 h-4" />
           </Button>

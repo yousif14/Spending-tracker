@@ -415,8 +415,36 @@ async createManualTransaction(transaction: { date: string; time: string; merchan
   });
 }
 
+  // ========================================================================
+  // MERCHANT OPERATIONS
+  // ========================================================================
 
+  /**
+   * Update merchant category and/or name (updates all transactions for this merchant)
+   * @param merchantName - The current merchant name
+   * @param newCategory - The new category to assign
+   * @param newName - Optional new merchant name
+   */
+  async updateMerchantCategory(merchantName: string, newCategory: string, newName?: string): Promise<{ success: boolean; message: string }> {
+    const body: { category: string; name?: string } = { category: newCategory };
+    if (newName) {
+      body.name = newName;
+    }
+    return this.fetchWithAuth(`/update-merchant/api/update-Merchant/${encodeURIComponent(merchantName)}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
 
+  /**
+   * Delete all transactions for a merchant
+   * @param merchantName - The merchant name to delete
+   */
+  async deleteMerchant(merchantName: string): Promise<{ success: boolean; message: string }> {
+    return this.fetchWithAuth(`/delete-transaction/api/delete-Merchant/${encodeURIComponent(merchantName)}`, {
+      method: 'DELETE',
+    });
+  }
 
   // Categories
   async getCategories(): Promise<Category[]> {

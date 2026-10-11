@@ -38,14 +38,14 @@ export interface PeriodWindow {
  * Represents a date range configuration
  *
  * @interface DateRangeConfig
- * @property {'fiscal' | 'custom' | 'all'} mode - Range selection mode
+ * @property {'fiscal' | 'custom' | 'all' | 'last3months'} mode - Range selection mode
  * @property {number} [month] - Fiscal month (1-12) for fiscal mode
  * @property {number} [year] - Fiscal year for fiscal mode
  * @property {string} [from] - Custom start date (YYYY-MM-DD) for custom mode
  * @property {string} [to] - Custom end date (YYYY-MM-DD) for custom mode
  */
 export interface DateRangeConfig {
-  mode: 'fiscal' | 'custom' | 'all';
+  mode: 'fiscal' | 'custom' | 'all' | 'last3months';
   month?: number;
   year?: number;
   from?: string;
@@ -147,13 +147,16 @@ export function getCurrentPeriodWindow(anchorDay: number = 23): PeriodWindow {
   const currentMonth = now.getMonth() + 1; // 1-12
   const currentYear = now.getFullYear();
 
-  // If current day is before anchor day, we're in the previous fiscal month
+  // If current day is before anchor day, we're still in the previous fiscal month
+  // Example: Oct 5 (day < 23) means we're in September fiscal period (Sep 23 - Oct 22)
   if (currentDay < anchorDay) {
+    // Use current calendar month as fiscal month (the period that ENDS in this month)
     const fiscalMonth = currentMonth;
-    const fiscalYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const fiscalYear = currentYear;
     return getPeriodWindow(fiscalYear, fiscalMonth, anchorDay);
   } else {
-    // Current day >= anchor day, we're in the current fiscal month
+    // Current day >= anchor day, we're in the next fiscal month
+    // Example: Oct 25 (day >= 23) means we're in October fiscal period (Oct 23 - Nov 22)
     const fiscalMonth = currentMonth === 12 ? 1 : currentMonth + 1;
     const fiscalYear = currentMonth === 12 ? currentYear + 1 : currentYear;
     return getPeriodWindow(fiscalYear, fiscalMonth, anchorDay);
@@ -223,6 +226,7 @@ export function getFiscalWindow(anchorDay: number = 23): { from: string; to: str
  * - 'fiscal': Uses fiscal month/year to calculate 23rd→22nd window
  * - 'custom': Uses provided from/to dates directly
  * - 'all': Returns undefined range (fetch all data)
+ * - 'last3months': Returns the last 3 complete fiscal months
  *
  * @param {DateRangeConfig} config - Date range configuration
  * @param {number} [anchorDay=23] - The day that starts the fiscal month
@@ -243,6 +247,11 @@ export function getFiscalWindow(anchorDay: number = 23): { from: string; to: str
  * // Get all time
  * buildRange({ mode: 'all' });
  * // Returns: { from: undefined, to: undefined }
+ *
+ * @example
+ * // Get last 3 months
+ * buildRange({ mode: 'last3months' });
+ * // Returns: { from: '2025-07-23', to: '2025-10-22' } (if current is Oct 2025)
  */
 export function buildRange(config: DateRangeConfig, anchorDay: number = 23): DateRange {
   switch (config.mode) {
@@ -261,6 +270,21 @@ export function buildRange(config: DateRangeConfig, anchorDay: number = 23): Dat
 
     case 'all':
       return { from: undefined, to: undefined };
+
+    case 'last3months':
+      // Get current period and go back 3 months for the start
+      const current = getCurrentPeriodWindow(anchorDay);
+      let startMonth = current.month - 2; // 3 months including current
+      let startYear = current.year;
+
+      // Handle year rollover
+      if (startMonth <= 0) {
+        startMonth += 12;
+        startYear -= 1;
+      }
+
+      const startWindow = getPeriodWindow(startYear, startMonth, anchorDay);
+      return { from: startWindow.from, to: current.to };
 
     default:
       throw new Error(`Unknown mode: ${config.mode}`);

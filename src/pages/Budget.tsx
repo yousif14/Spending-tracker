@@ -1,159 +1,171 @@
-import { useState } from 'react';
-import { Target, TrendingUp, TrendingDown, Edit } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { mockCategories, mockSummary } from '@/lib/mockData';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { DateRangeSelector } from '@/components/DateRangeSelector';
+import { SummaryCards } from '@/components/budget/SummaryCards';
+import { CategoryBreakdown } from '@/components/budget/CategoryBreakdown';
+import { TopMerchantsTable } from '@/components/budget/TopMerchantsTable';
+import { RecurringMerchantsTable } from '@/components/budget/RecurringMerchantsTable';
+import { apiClient } from '@/lib/api';
+import { DateRangeConfig, buildRange, getCurrentPeriodWindow } from '@/utils/period';
+import {
+  calculateBudgetAnalytics,
+  calculateTopMerchants,
+  calculateRecurringMerchants,
+  calculateCategoryAnalytics,
+} from '@/lib/budgetAnalytics';
 
-// Mock budget data
-const mockBudgetTargets = [
-  { category: 'Groceries', target: 100.000, spent: 25.500 },
-  { category: 'Restaurants', target: 80.000, spent: 4.200 },
-  { category: 'Transportation', target: 50.000, spent: 18.750 },
-  { category: 'Shopping', target: 150.000, spent: 89.900 },
-  { category: 'Entertainment', target: 40.000, spent: 12.000 },
-  { category: 'Health', target: 60.000, spent: 35.000 },
-];
+// Default total budget (can be made configurable later)
+const DEFAULT_TOTAL_BUDGET = 600.000;
 
 export default function Budget() {
-  const [isEditing, setIsEditing] = useState(false);
+  // Date range state (persisted in localStorage)
+  const [dateRangeConfig, setDateRangeConfig] = useState<DateRangeConfig>(() => {
+    const saved = localStorage.getItem('txnRange:v1');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fall through to default
+      }
+    }
+    const current = getCurrentPeriodWindow();
+    return {
+      mode: 'fiscal',
+      month: current.month,
+      year: current.year,
+    };
+  });
 
-  const getBudgetStatus = (spent: number, target: number) => {
-    const percentage = (spent / target) * 100;
-    if (percentage >= 90) return { status: 'danger', color: 'text-destructive bg-destructive/10' };
-    if (percentage >= 75) return { status: 'warning', color: 'text-warning bg-warning/10' };
-    return { status: 'good', color: 'text-success bg-success/10' };
-  };
+  // Resolve date range to from/to dates
+  const resolvedRange = useMemo(() => buildRange(dateRangeConfig), [dateRangeConfig]);
 
-  const totalBudget = mockBudgetTargets.reduce((sum, item) => sum + item.target, 0);
-  const totalSpent = mockBudgetTargets.reduce((sum, item) => sum + item.spent, 0);
-  const budgetProgress = (totalSpent / totalBudget) * 100;
+  // Fetch all transactions
+  const { data: allTransactions = [], isLoading } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: () => apiClient.getTransactions(),
+    staleTime: 30000,
+  });
+
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    if (!resolvedRange.from || !resolvedRange.to) {
+      return allTransactions; // All time mode
+    }
+    return allTransactions.filter(txn =>
+      txn.date >= resolvedRange.from! && txn.date <= resolvedRange.to!
+    );
+  }, [allTransactions, resolvedRange]);
+
+  // Calculate all analytics
+  const analytics = useMemo(() => {
+    if (filteredTransactions.length === 0) {
+      return null; // No transactions to analyze
+    }
+
+    let periodStart: Date;
+    let periodEnd: Date;
+
+    if (!resolvedRange.from || !resolvedRange.to) {
+      // "All Time" mode - use actual transaction date range
+      const dates = filteredTransactions.map(t => new Date(t.date).getTime());
+      periodStart = new Date(Math.min(...dates));
+      periodEnd = new Date(Math.max(...dates));
+    } else {
+      // Specific date range mode
+      periodStart = new Date(resolvedRange.from);
+      periodEnd = new Date(resolvedRange.to);
+    }
+
+    const budgetAnalytics = calculateBudgetAnalytics(
+      filteredTransactions,
+      DEFAULT_TOTAL_BUDGET,
+      periodStart,
+      periodEnd
+    );
+
+    const topMerchants = calculateTopMerchants(filteredTransactions);
+    const recurringMerchants = calculateRecurringMerchants(filteredTransactions, periodStart);
+    const categoryAnalytics = calculateCategoryAnalytics(
+      filteredTransactions,
+      budgetAnalytics.daysElapsed
+    );
+
+    return {
+      budget: budgetAnalytics,
+      topMerchants,
+      recurringMerchants,
+      categories: categoryAnalytics,
+    };
+  }, [filteredTransactions, resolvedRange]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading budget data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No transactions available
+  if (!analytics) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 space-y-6 animate-fade-up">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Budget Analytics</h1>
+            <p className="text-muted-foreground">Comprehensive spending insights for your fiscal period</p>
+          </div>
+        </div>
+
+        <DateRangeSelector
+          value={dateRangeConfig}
+          onChange={setDateRangeConfig}
+          storageKey="txnRange:v1"
+        />
+
+        <div className="kpi-card">
+          <p className="text-muted-foreground text-center py-8">
+            No transactions found for the selected period.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 animate-fade-up">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Budget</h1>
-          <p className="text-muted-foreground">Track your spending against your targets</p>
-        </div>
-        <Button 
-          onClick={() => setIsEditing(!isEditing)}
-          variant="outline"
-        >
-          <Edit className="w-4 h-4 mr-2" />
-          {isEditing ? 'Save Changes' : 'Edit Budget'}
-        </Button>
-      </div>
-
-      {/* Overall Budget Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="kpi-card">
-          <div className="flex items-center gap-3 mb-4">
-            <Target className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold text-foreground">Total Budget</h3>
-          </div>
-          <p className="text-2xl font-bold text-foreground currency-bhd">
-            {totalBudget.toFixed(3)}
-          </p>
-        </div>
-
-        <div className="kpi-card">
-          <div className="flex items-center gap-3 mb-4">
-            <TrendingUp className="w-5 h-5 text-success" />
-            <h3 className="font-semibold text-foreground">Total Spent</h3>
-          </div>
-          <p className="text-2xl font-bold text-foreground currency-bhd">
-            {totalSpent.toFixed(3)}
-          </p>
-        </div>
-
-        <div className="kpi-card">
-          <div className="flex items-center gap-3 mb-4">
-            <TrendingDown className="w-5 h-5 text-muted-foreground" />
-            <h3 className="font-semibold text-foreground">Remaining</h3>
-          </div>
-          <p className="text-2xl font-bold text-foreground currency-bhd">
-            {(totalBudget - totalSpent).toFixed(3)}
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">Budget Analytics</h1>
+          <p className="text-muted-foreground">Comprehensive spending insights for your fiscal period</p>
         </div>
       </div>
 
-      {/* Budget Progress */}
-      <div className="kpi-card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-foreground">Overall Progress</h3>
-          <span className="text-sm font-medium text-muted-foreground">
-            {budgetProgress.toFixed(1)}% used
-          </span>
-        </div>
-        <div className="w-full bg-muted rounded-full h-3">
-          <div 
-            className="h-3 rounded-full transition-all duration-500 gradient-primary"
-            style={{ width: `${Math.min(budgetProgress, 100)}%` }}
-          />
-        </div>
-      </div>
+      {/* Date Range Selector */}
+      <DateRangeSelector
+        value={dateRangeConfig}
+        onChange={setDateRangeConfig}
+        storageKey="txnRange:v1"
+      />
 
-      {/* Category Budgets */}
-      <div className="kpi-card">
-        <h3 className="text-lg font-semibold text-foreground mb-6">Budget by Category</h3>
-        <div className="space-y-6">
-          {mockBudgetTargets.map((item) => {
-            const categoryColor = mockCategories.find(c => c.name === item.category)?.color;
-            const percentage = (item.spent / item.target) * 100;
-            const { color } = getBudgetStatus(item.spent, item.target);
-            
-            return (
-              <div key={item.category} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: categoryColor }}
-                    />
-                    <span className="font-medium text-foreground">{item.category}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className={`text-xs px-2 py-1 rounded-lg ${color}`}>
-                      {percentage.toFixed(1)}%
-                    </span>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-foreground currency-bhd">
-                        {item.spent.toFixed(3)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        of BD {item.target.toFixed(3)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="h-2 rounded-full transition-all duration-500"
-                    style={{ 
-                      width: `${Math.min(percentage, 100)}%`,
-                      backgroundColor: categoryColor 
-                    }}
-                  />
-                </div>
-                
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>BD 0</span>
-                  <span>BD {item.target.toFixed(3)}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Summary Cards (KPIs) */}
+      <SummaryCards analytics={analytics.budget} />
 
-      {/* Editing Mode Placeholder */}
-      {isEditing && (
-        <div className="kpi-card">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Edit Budget Targets</h3>
-          <p className="text-muted-foreground">Budget editing functionality will be implemented here.</p>
-        </div>
-      )}
+      {/* Category Breakdown */}
+      <CategoryBreakdown
+        categories={analytics.categories}
+        budget={DEFAULT_TOTAL_BUDGET}
+      />
+
+      {/* Top Merchants by Spending */}
+      <TopMerchantsTable merchants={analytics.topMerchants} />
+
+      {/* Recurring Merchants */}
+      <RecurringMerchantsTable merchants={analytics.recurringMerchants} />
     </div>
   );
 }

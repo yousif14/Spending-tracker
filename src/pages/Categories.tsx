@@ -1,16 +1,85 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FolderOpen, TrendingUp, Receipt } from 'lucide-react';
-import { mockCategories, mockSummary } from '@/lib/mockData';
+import { useQuery } from '@tanstack/react-query';
+import { DateRangeSelector } from '@/components/DateRangeSelector';
+import { apiClient } from '@/lib/api';
+import { DateRangeConfig, buildRange, getCurrentPeriodWindow } from '@/utils/period';
+import { getCategoryColor } from '@/utils/categoryColors';
 
 export default function Categories() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // Date range state (persisted in localStorage)
+  const [dateRangeConfig, setDateRangeConfig] = useState<DateRangeConfig>(() => {
+    const saved = localStorage.getItem('txnRange:v1');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fall through to default
+      }
+    }
+    const current = getCurrentPeriodWindow();
+    return {
+      mode: 'fiscal',
+      month: current.month,
+      year: current.year,
+    };
+  });
+
+  // Resolve date range to from/to dates
+  const resolvedRange = useMemo(() => buildRange(dateRangeConfig), [dateRangeConfig]);
+
+  // Fetch all transactions
+  const { data: allTransactions = [], isLoading: transactionsLoading } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: () => apiClient.getTransactions(),
+    staleTime: 30000,
+  });
+
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    if (!resolvedRange.from || !resolvedRange.to) {
+      return allTransactions; // All time mode
+    }
+    return allTransactions.filter(txn =>
+      txn.date >= resolvedRange.from! && txn.date <= resolvedRange.to!
+    );
+  }, [allTransactions, resolvedRange]);
+
+  // Calculate category statistics
+  const categoryStats = useMemo(() => {
+    const categoryMap: Record<string, { amount: number; transactions: number }> = {};
+
+    filteredTransactions.forEach(txn => {
+      const category = txn.category || 'Other';
+      if (!categoryMap[category]) {
+        categoryMap[category] = { amount: 0, transactions: 0 };
+      }
+      categoryMap[category].amount += txn.amount;
+      categoryMap[category].transactions += 1;
+    });
+
+    const total = Object.values(categoryMap).reduce((sum, cat) => sum + cat.amount, 0);
+
+    return Object.entries(categoryMap).map(([category, data]) => ({
+      name: category,
+      color: getCategoryColor(category),
+      amount: data.amount,
+      transactions: data.transactions,
+      percentage: total > 0 ? (data.amount / total) * 100 : 0
+    })).sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions]);
+
+  const totalAmount = categoryStats.reduce((sum, cat) => sum + cat.amount, 0);
+  const totalTransactions = categoryStats.reduce((sum, cat) => sum + cat.transactions, 0);
+
   const getCategoryStats = (categoryName: string) => {
-    const categoryData = mockSummary.totalsByCategory.find(c => c.category === categoryName);
+    const categoryData = categoryStats.find(c => c.name === categoryName);
     return {
       amount: categoryData?.amount || 0,
-      transactions: 1, // Mock data - would come from actual transaction count
-      percentage: categoryData ? (categoryData.amount / mockSummary.total) * 100 : 0
+      transactions: categoryData?.transactions || 0,
+      percentage: categoryData?.percentage || 0
     };
   };
 
@@ -24,9 +93,18 @@ export default function Categories() {
         </div>
       </div>
 
+      {/* Date Range Selector */}
+      <div className="kpi-card">
+        <DateRangeSelector
+          value={dateRangeConfig}
+          onChange={setDateRangeConfig}
+          storageKey="txnRange:v1"
+        />
+      </div>
+
       {/* Categories Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {mockCategories.map((category) => {
+        {categoryStats.map((category) => {
           const stats = getCategoryStats(category.name);
           
           return (
@@ -132,18 +210,18 @@ export default function Categories() {
       {/* Summary Stats */}
       <div className="kpi-card">
         <h3 className="text-lg font-semibold text-foreground mb-4">Category Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <h4 className="font-medium text-foreground mb-3">Top Spending Categories</h4>
             <div className="space-y-2">
-              {mockSummary.totalsByCategory.slice(0, 3).map((item, index) => (
+              {categoryStats.slice(0, 3).map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div 
+                    <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-sm text-foreground">{item.category}</span>
+                    <span className="text-sm text-foreground">{item.name}</span>
                   </div>
                   <span className="text-sm font-medium text-foreground currency-bhd">
                     {item.amount.toFixed(3)}
@@ -152,10 +230,16 @@ export default function Categories() {
               ))}
             </div>
           </div>
-          
+
+          <div>
+            <h4 className="font-medium text-foreground mb-3">Total Spending</h4>
+            <p className="text-3xl font-bold text-foreground currency-bhd">{totalAmount.toFixed(3)}</p>
+            <p className="text-sm text-muted-foreground">{totalTransactions} transactions</p>
+          </div>
+
           <div>
             <h4 className="font-medium text-foreground mb-3">Category Count</h4>
-            <p className="text-3xl font-bold text-foreground">{mockCategories.length}</p>
+            <p className="text-3xl font-bold text-foreground">{categoryStats.length}</p>
             <p className="text-sm text-muted-foreground">Active categories</p>
           </div>
         </div>

@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, LayoutDashboard, Receipt, PieChart, FolderOpen, Settings, Menu, X } from 'lucide-react';
+import { Home, Receipt, PieChart, FolderOpen, Store, Settings, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 const navigationItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Transactions', href: '/transactions', icon: Receipt },
+  { name: 'Transactions', href: '/', icon: Receipt },
   { name: 'Budget', href: '/budget', icon: PieChart },
   { name: 'Categories', href: '/categories', icon: FolderOpen },
+  { name: 'Merchants', href: '/merchants', icon: Store },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
