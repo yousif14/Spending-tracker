@@ -1,0 +1,88 @@
+<title>FA Motion Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: one readable column, findings as a ledger list with a severity chip per row (FA's Calm Ledger tokens) */
+:root {
+  --bg: #F6F7F4; --surface: #FFFFFF; --ink: #1C2421; --muted: #66746F; --line: #E3E8E5; --accent: #0F7B62;
+  --warn: #C98A1B; --danger: #C2453D; --chip: #E3E8E5;
+  --display: 'Fraunces', Georgia, serif; --body: 'Manrope', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101513; --surface: #18201D; --ink: #E6ECE9; --muted: #9AABA4; --line: #2A3531; --accent: #4CC9A4;
+  --warn: #E0A43A; --danger: #E06A61; --chip: #2A3531; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #18201D; --ink: #E6ECE9; --muted: #9AABA4; --line: #2A3531; --accent: #4CC9A4;
+  --warn: #E0A43A; --danger: #E06A61; --chip: #2A3531; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body); }
+.wrap { max-width: 720px; margin: 0 auto; padding-inline: 16px; padding-block: 32px 48px; display: grid; gap: 28px; }
+h1 { font: 600 2rem/1.15 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font: 800 0.95rem/1.3 var(--body); margin: 0 0 10px; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 62ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+ul.ledger { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+ul.ledger li { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 14px 16px; border-top: 1px solid var(--line); }
+ul.ledger li:first-child { border-top: 0; }
+.chip { grid-row: span 2; align-self: start; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 6px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.chip.high { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.chip.med { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.chip.ok { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.what { font-weight: 600; min-width: 0; }
+.how { color: var(--muted); font-size: 14px; min-width: 0; }
+.how code, .what code { font-size: 13px; background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+.fixed { color: var(--accent); font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <h1>FA motion audit</h1>
+    <p class="lede">Review of the new app shell before the P4 deploy: Overview, Activity, Quick add, edit sheet and pull to refresh. Judged as a daily-use finance tool, so motion should be fast, quiet and only where it explains a change.</p>
+    <div class="meta"><span>Date <b>11 Oct 2026</b></span><span>Lens <b>Emil Kowalski (primary), Jakub Krehel (secondary)</b></span><span>Scope <b>src/components/fa, src/pages/fa</b></span></div>
+  </header>
+
+  <section>
+    <h2>Fixed before deploy</h2>
+    <ul class="ledger">
+      <li><span class="chip high">High</span><span class="what">Refresh icon spun on every 30 s auto-refresh</span>
+        <span class="how">Background refreshes are invisible by design. The icon and the pull indicator now spin only when you ask for a refresh. <span class="fixed">Fixed.</span></span></li>
+      <li><span class="chip high">High</span><span class="what">Category bars replayed from zero on every switch back to Overview</span>
+        <span class="how">Segment switching is frequent, so a replay each time becomes noise. Bars grow on the first load only; after that they move only when a value changes. <span class="fixed">Fixed.</span></span></li>
+      <li><span class="chip high">High</span><span class="what">"All time" rendered about 2,100 animated rows</span>
+        <span class="how">Heavy on phones and makes every refresh expensive. Activity now shows 150 rows with a "Show more" button. <span class="fixed">Fixed.</span></span></li>
+      <li><span class="chip med">Medium</span><span class="what">Segment switch took about 300 ms end to end</span>
+        <span class="how">Enter shortened to 150 ms with a smaller slide; exit is a plain 80 ms fade. <span class="fixed">Fixed.</span></span></li>
+      <li><span class="chip med">Medium</span><span class="what">Progress bars animated <code>width</code></span>
+        <span class="how">Switched to <code>scaleX</code> from the left edge, so only transform animates. <span class="fixed">Fixed.</span></span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Checked and fine</h2>
+    <ul class="ledger">
+      <li><span class="chip ok">Pass</span><span class="what">Reduced motion</span>
+        <span class="how">App-wide <code>MotionConfig reducedMotion="user"</code>, a CSS reduced-motion guard, and the spent total jumps straight to its value.</span></li>
+      <li><span class="chip ok">Pass</span><span class="what">Easing and springs</span>
+        <span class="how">Custom ease-out curve throughout; the segment pill uses a spring with no bounce. No bare <code>ease</code>.</span></li>
+      <li><span class="chip ok">Pass</span><span class="what">Exits lighter than entries</span>
+        <span class="how">Rows enter with fade, 6 px rise and slight blur over 220 ms; deletes leave in 150 ms.</span></li>
+      <li><span class="chip ok">Pass</span><span class="what">New-row highlight</span>
+        <span class="how">Only transactions that are new since the last refresh get a 2 s tint; existing rows never animate on refresh.</span></li>
+      <li><span class="chip ok">Pass</span><span class="what">Press feedback</span>
+        <span class="how">Add button 0.95, chips and pills 0.97 on press. No hover-scale on cards.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Left as is</h2>
+    <ul class="ledger">
+      <li><span class="chip">Low</span><span class="what">Skeleton to content swaps instantly</span>
+        <span class="how">Happens once per visit and the data is what matters. Not worth a transition.</span></li>
+      <li><span class="chip">Low</span><span class="what">Highlight tint animates background colour</span>
+        <span class="how">A single small row for 2 s. Cheap enough; kept for clarity.</span></li>
+    </ul>
+  </section>
+</div>

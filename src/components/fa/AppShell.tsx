@@ -17,7 +17,9 @@ export function AppShell() {
   const loc = useLocation();
   const nav = useNavigate();
   const [adding, setAdding] = useState(false);
-  const { isFetching, dataUpdatedAt, refetch, isError, data } = useFeed();
+  const [manual, setManual] = useState(false);   // spin only for refreshes the user asked for, not the 30 s auto-refresh
+  const refresh = () => { setManual(true); refetch().finally(() => setManual(false)); };
+  const { dataUpdatedAt, refetch, isError, data } = useFeed();
   const { theme, toggleTheme } = useTheme();
   const onSegment = SEGMENTS.some(s => s.to === loc.pathname);
   const headerRef = useCssVarHeight<HTMLElement>('--fa-header-h');
@@ -29,8 +31,8 @@ export function AppShell() {
           <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
             <button onClick={() => nav('/')} className="font-display text-xl tracking-tight">FA</button>
             <PeriodPill />
-            <button aria-label="Refresh" onClick={() => refetch()} className="ml-auto rounded-full p-2 transition-colors hover:bg-muted">
-              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            <button aria-label="Refresh" onClick={refresh} className="ml-auto rounded-full p-2 transition-colors hover:bg-muted">
+              <RefreshCw className={`h-4 w-4 ${manual ? 'animate-spin' : ''}`} />
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger aria-label="Menu" className="rounded-full p-2 transition-colors hover:bg-muted"><Menu className="h-5 w-5" /></DropdownMenuTrigger>
@@ -65,12 +67,12 @@ export function AppShell() {
           </p>
         )}
 
-        <PullToRefresh onRefresh={() => refetch()} refreshing={isFetching}>
+        <PullToRefresh onRefresh={refresh} refreshing={manual}>
           <main className="mx-auto max-w-3xl px-4 pt-4">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={loc.pathname}
-                initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0, transition: { duration: 0.18, ease: EASE_OUT } }}
-                exit={{ opacity: 0, x: -8, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] } }}>
+                initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0, transition: { duration: 0.15, ease: EASE_OUT } }}
+                exit={{ opacity: 0, transition: { duration: 0.08 } }}>
                 <Outlet />
               </motion.div>
             </AnimatePresence>

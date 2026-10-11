@@ -14,6 +14,7 @@ import { TxRow } from '@/components/fa/TxRow';
 import { TxEditSheet } from '@/components/fa/TxEditSheet';
 import { listItem } from '@/components/fa/motion';
 
+const PAGE = 150;   // rows rendered at a time — keeps "All time" (2,000+ rows) light on phones
 const dayLabel = (d: string) => format(new Date(d + 'T00:00:00'), 'EEE d MMM');
 
 export default function Activity() {
@@ -25,6 +26,8 @@ export default function Activity() {
     return cat ? { ...EMPTY_FILTER, categories: [cat] } : EMPTY_FILTER;
   });
   const [editing, setEditing] = useState<Tx | null>(null);
+  const [limit, setLimit] = useState(PAGE);
+  useEffect(() => setLimit(PAGE), [filter, range]);
 
   // New-row highlight: SNs not in the previous feed (after the first load) glow for 2 s
   const seen = useRef<Set<string> | null>(null);
@@ -42,9 +45,10 @@ export default function Activity() {
   const view = useMemo(() => {
     if (!data) return null;
     const list = applyFilters(data.transactions, { ...filter, from: range.from, to: range.to });
-    return { list, groups: filter.sort === 'amount' ? null : groupByDay(list), total: list.reduce((s, t) => s + t.amount, 0),
+    const shown = list.slice(0, limit);
+    return { list, shown, groups: filter.sort === 'amount' ? null : groupByDay(shown), total: list.reduce((s, t) => s + t.amount, 0),
       colors: new Map(data.categories.map(c => [c.name, c.color])), cats: data.categories.filter(c => c.active) };
-  }, [data, filter, range]);
+  }, [data, filter, range, limit]);
 
   if (isLoading && !data) return <div className="space-y-2">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>;
   if (isError && !data) return (
@@ -82,7 +86,12 @@ export default function Activity() {
           </section>
         ))
       ) : (
-        <AnimatePresence initial={false}>{view.list.map(row)}</AnimatePresence>
+        <AnimatePresence initial={false}>{view.shown.map(row)}</AnimatePresence>
+      )}
+      {view.shown.length < view.list.length && (
+        <Button variant="outline" className="mt-2 w-full" onClick={() => setLimit(l => l + PAGE)}>
+          Show more ({view.list.length - view.shown.length} left)
+        </Button>
       )}
       <TxEditSheet tx={editing} onClose={() => setEditing(null)} />
     </div>

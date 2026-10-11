@@ -16,7 +16,7 @@ export function TxRow({ tx, color = '#8A9490', highlight = false, onClick }: { t
         <CategoryIcon categoryName={tx.category} className="h-[18px] w-[18px]" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{tx.merchant || '—'}</span>
+        <span className="block truncate text-sm font-semibold">{tx.merchant || 'Unknown'}</span>
         <span className="block truncate text-xs text-muted-foreground">{meta}</span>
       </span>
       <span className="shrink-0 text-sm font-bold tnum">{bhd(tx.amount)}</span>
