@@ -4,6 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import pkg from "./package.json";
+import { readFileSync } from "fs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -26,8 +27,18 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       mode === "development" && componentTagger(),
+      {
+        // iOS fetches the touch icon without the Cloudflare Access cookie and gets the login page, so embed it in index.html
+        name: "inline-touch-icon",
+        apply: "build",
+        transformIndexHtml(html: string) {
+          const b64 = readFileSync(path.resolve(__dirname, "public/apple-touch-icon-180.png")).toString("base64");
+          return html.replace('href="/apple-touch-icon-180.png"', `href="data:image/png;base64,${b64}"`);
+        },
+      },
       VitePWA({
         registerType: "autoUpdate",
+        useCredentials: true,   // manifest fetch carries the Cloudflare Access cookie (Android install icon)
         includeAssets: ["favicon.ico", "icon.svg", "apple-touch-icon.png"],
         manifest: {
           name: "FA Spending", short_name: "FA", start_url: "/", display: "standalone",

@@ -18,7 +18,7 @@ const sizes = [
   ['apple-touch-icon-180.png', 180],
 ];
 
-const png = size => sharp(svg, { density: 300 }).resize(size, size).png().toBuffer();
+const png = size => sharp(svg, { density: 300 }).resize(size, size).png({ palette: true, colors: 64 }).toBuffer();   // flat art: small files (the 180px one is inlined in index.html)
 
 /** favicon.ico holding PNG images (supported by every current browser) */
 function ico(images) {
