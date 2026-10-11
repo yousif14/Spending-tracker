@@ -36,7 +36,7 @@ export default function Categories() {
   const submit = () => {
     if (!editing || !name || clash) return;
     const isNew = !editing.from;
-    save.mutate({ name, color: editing.color, from: editing.from }, {
+    save.mutate({ name, color: editing.color, from: editing.from, base: cats.find(c => c.name === editing.from) }, {
       onSuccess: () => toast.success(isNew ? `Added ${name}` : 'Saved'),
       onError: () => toast.error("Couldn't save the category. Try again."),
     });

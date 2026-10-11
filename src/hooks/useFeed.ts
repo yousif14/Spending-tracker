@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fa } from '@/lib/fa/client';
-import type { Feed, NewTx, Tx } from '@/lib/fa/types';
+import type { Cat, Feed, NewTx, Tx } from '@/lib/fa/types';
 
 export const FEED_KEY = ['fa-feed'] as const;
 
@@ -44,9 +44,10 @@ export const useMerchantUpdate = () => useFeedMutation(
     t.merchant === from ? { ...t, merchant: to || t.merchant, category: category || t.category } : t) }));
 
 export const useSaveCategory = () => useFeedMutation(
-  async ({ name, color, from }: { name: string; color: string; from?: string }) => {
+  // The upsert writes every column, so carry the existing budget/icon/order/active along with the change
+  async ({ name, color, from, base }: { name: string; color: string; from?: string; base?: Cat }) => {
     if (from && from !== name) await fa.saveCategories([], { from, to: name });
-    return fa.saveCategories([{ Name: name, Color: color }]);
+    return fa.saveCategories([{ Name: name, Color: color, Icon: base?.icon ?? 'Tag', Budget: base?.budget ?? 0, Order: base?.order ?? 999, Active: base?.active ?? true }]);
   },
   (f, { name, color, from }) => {
     const exists = f.categories.some(c => c.name === (from ?? name));
@@ -60,3 +61,12 @@ export const useSaveCategory = () => useFeedMutation(
 export const useDeleteCategory = () => useFeedMutation((name: string) => fa.deleteCategory(name),
   (f, name) => ({ ...f, categories: f.categories.filter(c => c.name !== name),
     transactions: f.transactions.map(t => (t.category === name ? { ...t, category: 'Other' } : t)) }));
+
+/** Saves edited category budgets together (full rows, so nothing else is reset) */
+export const useSaveBudgets = () => useFeedMutation(
+  (cats: Cat[]) => fa.saveCategories(cats.map(c => ({ Name: c.name, Color: c.color, Icon: c.icon, Budget: c.budget, Order: c.order, Active: c.active }))),
+  (f, cats) => { const m = new Map(cats.map(c => [c.name, c.budget])); return { ...f, categories: f.categories.map(c => (m.has(c.name) ? { ...c, budget: m.get(c.name)! } : c)) }; });
+
+export const useSetSetting = () => useFeedMutation(
+  ({ key, value }: { key: string; value: string | number }) => fa.setSetting(key, value),
+  (f, { key, value }) => ({ ...f, settings: { ...f.settings, [key]: value } }));
