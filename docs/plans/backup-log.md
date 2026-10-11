@@ -9,3 +9,4 @@
 | 2026-10-11 16:02 | P2 end, rollback point | n8n logical (103 workflows) | C:\data\n8n\n8n_Api\backups\2026-10-11T13-02-24 | 2122 / 961 | sum 29961.514 (test rows deleted); FA - add transaction 78 nodes; bot token in n8n .env (FA_TG_BOT_TOKEN), n8n restarted 15:51 |
 | 2026-10-11 16:17 | P3 start | n8n logical (103 workflows, 13 tables) | C:\data\n8n\n8n_Api\backups\2026-10-11T13-16-58 | 2122 / 961 | tx Amount sum 29961.514 |
 | 2026-10-11 16:39 | P3 end, rollback point | n8n logical (104 workflows) | C:\data\n8n\n8n_Api\backups\2026-10-11T13-39-26 | 2122 / 961 | sum 29961.514 (API test rows deleted); FA - App API IEW0HesCX5GkbAFt; iPhone webhook needs X-FA-Key (Shortcut updated, live test passed); app redeployed with nginx /api/fa proxy |
+| 2026-10-11 17:15 | P4 start | n8n logical + app image tag `pre-p4` (35d9847063f3 = P3 nginx build) | C:\data\n8n\n8n_Api\backups\2026-10-11T14-14-49 | 2122 / 961 | app rollback: retag pre-p4 as latest |
