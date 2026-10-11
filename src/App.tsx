@@ -1,42 +1,36 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { Navigation } from "@/components/layout/Navigation";
-import Transactions from "./pages/Transactions";
-import Budget from "./pages/Budget";
-import Categories from "./pages/Categories";
-import Merchants from "./pages/Merchants";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+import { PeriodProvider } from "@/state/period";
+import { AppShell } from "@/components/fa/AppShell";
+import Overview from "@/pages/fa/Overview";
+import Activity from "@/pages/fa/Activity";
+import Placeholder from "@/pages/fa/Placeholder";
+import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+// The QueryClient lives in main.tsx (QueryProvider). Old Lovable pages stay on disk until P5 but are no longer routed.
+export default function App() {
+  return (
     <ThemeProvider>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="min-h-screen bg-background transition-colors duration-300">
-            <Navigation />
+        <PeriodProvider>
+          <Toaster position="top-center" />
+          <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Transactions />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/budget" element={<Budget />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/merchants" element={<Merchants />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
+              <Route element={<AppShell />}>
+                <Route path="/" element={<Overview />} />
+                <Route path="/activity" element={<Activity />} />
+                <Route path="/stats" element={<Placeholder title="Stats" />} />
+                <Route path="/budgets" element={<Placeholder title="Budgets" />} />
+                <Route path="/categories" element={<Placeholder title="Categories" />} />
+                <Route path="/settings" element={<Placeholder title="Settings" />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
             </Routes>
-          </div>
-        </BrowserRouter>
+          </BrowserRouter>
+        </PeriodProvider>
       </TooltipProvider>
     </ThemeProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+  );
+}

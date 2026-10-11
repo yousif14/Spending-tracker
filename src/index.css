@@ -125,10 +125,8 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Prevent horizontal scroll on all elements */
-  * {
-    max-width: 100%;
-  }
+  /* media never overflows its container (the old blanket "* { max-width: 100% }" broke full-bleed rows) */
+  img, svg, video, canvas { max-width: 100%; }
 
   .tnum { font-variant-numeric: tabular-nums; }
 
@@ -141,10 +139,6 @@
     }
   }
 
-  /* Allow specific elements to break containment when needed */
-  html, body, #root {
-    max-width: none;
-  }
 }
 
 @layer components {

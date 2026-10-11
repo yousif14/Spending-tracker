@@ -23,7 +23,10 @@ import {
   Dumbbell,
   Tv,
   Plane,
-  HelpCircle
+  HelpCircle,
+  Baby,
+  Wrench,
+  Users
 } from 'lucide-react';
 
 /**
@@ -33,6 +36,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   // Transportation
   'Car': Car,
   'Patrol': Fuel,
+  'Petrol': Fuel,
   'Travel': Plane,
 
   // Food & Drink
@@ -55,6 +59,9 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   // Entertainment & Services
   'Sport': Dumbbell,
   'Subscription': Tv,
+  'Services': Wrench,
+  'Gathering': Users,
+  'Baby': Baby,
 
   // Financial
   'Investment': TrendingUp,
@@ -62,6 +69,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 
   // Other
   'other': Package,
+  'Other': Package,
 };
 
 /**
