@@ -39,6 +39,7 @@
 | FA - Delete Duplicate Transactions | `fKkEmIilkrKrAEx4` |
 | Joseph – Finance Query | `RIbvggdanZ2tzERx` (source in `C:\data\Joseph\build\finance.code.js`) |
 | Credential `FA App Key` (httpHeaderAuth `X-FA-Key`) | `xlromAeekU2zUicJ` (created P3) |
+| FA - App API | `IEW0HesCX5GkbAFt` (created P3, 44 nodes, webhooks `fa/*` need `X-FA-Key`) |
 | Telegram owner chat | `1804897276` |
 | App URL | https://fa.11homelab.cc (Cloudflare Access), container `financial-app`, host port 3002 |
 | n8n API | `https://n8n.11homelab.cc/api/v1`, header `X-N8N-API-KEY`, key file `C:\data\n8n\n8n_Api\n8n_api.env` (single line) |
