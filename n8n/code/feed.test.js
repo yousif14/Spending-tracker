@@ -11,10 +11,10 @@ describe('toFeedTx', () => {
 });
 
 describe('buildFeed', () => {
-  it('sorts newest first, sorts categories, maps settings', () => {
+  it('sorts newest first, categories A–Z, maps settings', () => {
     const f = buildFeed({
       tx: [{ SN: 1, Date: '2026-01-01', Time: '10:00', Amount: 1 }, { SN: 2, Date: '2026-02-01', Time: '09:00', Amount: 2 }],
-      categories: [{ id: 1, Name: 'B', Order: 2, Active: true }, { id: 2, Name: 'A', Order: 1, Active: true }],
+      categories: [{ id: 1, Name: 'B', Order: 1, Active: true }, { id: 2, Name: 'A', Order: 2, Active: true }],
       catList: [{ Merchant: 'JASMIS', Category: 'Food' }],
       settings: [{ Key: 'total_budget', Value: '600' }],
     }, new Date('2026-03-01T00:00:00Z'));

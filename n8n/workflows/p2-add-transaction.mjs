@@ -149,7 +149,7 @@ const getCats = node(wf, 'Get Categories List').parameters;
 getCats.dataTableId = { __rl: true, value: TABLES.categories, mode: 'list', cachedResultName: 'Categories' };
 getCats.filters = { conditions: [{ keyName: 'Active', keyValue: true }] };
 setCode(wf, 'Create Category Buttons', `
-const cats = $input.all().map(i => i.json).filter(c => c.Name).sort((a, b) => (a.Order ?? 999) - (b.Order ?? 999));
+const cats = $input.all().map(i => i.json).filter(c => c.Name).sort((a, b) => String(a.Name).localeCompare(String(b.Name)));   // always A–Z, new ones included
 const tx = $('Search in Cat-list').first().json;
 const buttons = [];
 for (let i = 0; i < cats.length; i += 2) {
@@ -176,7 +176,7 @@ return [{ json: { Name: name, selectedCategory: name, transactionSN: Number(m.tr
 clone(wf, 'Save to Cat-list', 'Upsert Category', { parameters: { operation: 'upsert',
   dataTableId: { __rl: true, value: TABLES.categories, mode: 'list', cachedResultName: 'Categories' },
   filters: { conditions: [{ keyName: 'Name', keyValue: '={{ $json.Name }}' }] },
-  columns: { mappingMode: 'defineBelow', value: { Name: '={{ $json.Name }}', Color: '#8A9490', Icon: 'Tag', Budget: 0, Order: 999, Active: true },
+  columns: { mappingMode: 'defineBelow', value: { Name: '={{ $json.Name }}', Color: "={{ ['#7C5CC4','#3B8FB0','#D96B4F','#2E8B57','#C24A6A','#B5803A','#5B6B7A','#8A6A3B'][[...$json.Name].reduce((h, c) => h + c.charCodeAt(0), 0) % 8] }}", Icon: 'Tag', Budget: 0, Order: 999, Active: true },
     matchingColumns: [], schema: ['Name','Color','Icon','Budget','Order','Active'].map(id => ({ id, displayName: id, required: false, defaultMatch: false, display: true,
       type: id === 'Budget' || id === 'Order' ? 'number' : id === 'Active' ? 'boolean' : 'string', readOnly: false, removed: false })),
     attemptToConvertTypes: false, convertFieldsToString: false }, options: {} } }, 0, 1000);

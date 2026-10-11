@@ -137,6 +137,53 @@ respond('Categories: ok', ok, 1540);
 link('Categories: rename?', 'Categories: rename tx', 0); link('Categories: rename?', 'Categories: ok', 1);
 chain('Categories: rename tx', 'Categories: rename cat-list', 'Categories: ok');
 
+// ---- POST fa/category-delete { name } — moves its transactions + Cat-list rows to Other, removes the category,
+//      and sends the moved list to the owner through the Joseph bot
+y = 2100;
+const JOSEPH_TG = { telegramApi: { id: '1gRJqyOju2VtMJAG', name: 'Joseph' } };
+chain(webhook('Category delete', 'fa/category-delete', 'POST', 0),
+  code('Category delete: check', `
+const name = String(($input.first().json.body || {}).name || '').trim();
+if (!name || name === 'Other') return [{ json: { error: name ? 'Other cannot be deleted' : 'name is required' } }];
+return [{ json: { name } }];`, 220),
+  ifNode('Category delete: valid?', 440, '={{ $json.error }}', 'notExists'));
+respond('Category delete: bad', fail, 660, 400);
+link('Category delete: valid?', 'Category delete: bad', 1);
+dt('Category delete: tx', 660, { operation: 'get', dataTableId: rl(TABLES.transactions, 'transactions'), matchType: 'allConditions',
+  filters: { conditions: [{ keyName: 'Category', keyValue: '={{ $json.name }}' }] }, returnAll: true }, { alwaysOutputData: true });
+link('Category delete: valid?', 'Category delete: tx', 0);
+chain('Category delete: tx',
+  // no transactions → one no-op patch (SN -1) so the chain continues
+  code('Category delete: patches', `
+const out = $input.all().map(i => i.json).filter(r => r.SN).map(r => ({ json: { SN: r.SN, Category: 'Other' } }));
+return out.length ? out : [{ json: { SN: -1, Category: 'Other' } }];`, 880),
+  dt('Category delete: tx write', 1100, { operation: 'update', dataTableId: rl(TABLES.transactions, 'transactions'), filters: bySN('={{ $json.SN }}'),
+    columns: autoCols([['Category', 'string']]), options: {} }, { alwaysOutputData: true }),
+  dt('Category delete: cat-list', 1320, { operation: 'update', dataTableId: rl(TABLES.catList, 'Cat-list'),
+    filters: { conditions: [{ keyName: 'Category', keyValue: "={{ $('Category delete: check').first().json.name }}" }] },
+    columns: { mappingMode: 'defineBelow', value: { Category: 'Other' }, matchingColumns: [],
+      schema: [{ id: 'Category', displayName: 'Category', required: false, defaultMatch: false, display: true, type: 'string', readOnly: false, removed: false }],
+      attemptToConvertTypes: false, convertFieldsToString: false }, options: {} }, { executeOnce: true, alwaysOutputData: true }),
+  dt('Category delete: remove', 1540, { operation: 'deleteRows', dataTableId: rl(TABLES.categories, 'Categories'), matchType: 'allConditions',
+    filters: { conditions: [{ keyName: 'Name', keyValue: "={{ $('Category delete: check').first().json.name }}" }] }, options: {} }, { executeOnce: true, alwaysOutputData: true }),
+  code('Category delete: message', `
+const name = $('Category delete: check').first().json.name;
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const rows = $('Category delete: tx').all().map(i => i.json).filter(r => r.SN)
+  .sort((a, b) => String(b.Date).localeCompare(String(a.Date)));
+const total = rows.reduce((s, r) => s + Number(r.Amount || 0), 0);
+const lines = rows.slice(0, 60).map(r => esc(r.Date) + ' · ' + esc(r.Merchant) + ' · ' + Number(r.Amount || 0).toFixed(3));
+const more = rows.length > 60 ? '\\n…and ' + (rows.length - 60) + ' more' : '';
+const text = '🗂 <b>Category "' + esc(name) + '" deleted</b>\\n' + rows.length + ' transaction(s) moved to <b>Other</b> (' + total.toFixed(3) + ' BHD):\\n\\n' + lines.join('\\n') + more;
+return [{ json: { moved: rows.length, text } }];`, 1760));
+ifNode('Category delete: any moved?', 1980, '={{ $json.moved > 0 ? "yes" : "" }}', 'notEmpty');
+link('Category delete: message', 'Category delete: any moved?');
+add({ name: 'Category delete: notify', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [2200, y - 100], credentials: JOSEPH_TG,
+  onError: 'continueRegularOutput', parameters: { chatId: '1804897276', text: '={{ $json.text }}', additionalFields: { appendAttribution: false, parse_mode: 'HTML' } } });
+respond('Category delete: ok', "={{ { success: true, moved: $('Category delete: message').first().json.moved } }}", 2420);
+link('Category delete: any moved?', 'Category delete: notify', 0); link('Category delete: any moved?', 'Category delete: ok', 1);
+link('Category delete: notify', 'Category delete: ok');
+
 // ---- POST fa/settings { key, value }
 y = 1800;
 chain(webhook('Settings', 'fa/settings', 'POST', 0),

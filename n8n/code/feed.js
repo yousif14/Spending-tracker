@@ -16,7 +16,7 @@ export function buildFeed({ tx, categories, catList, settings }, now = new Date(
     generatedAt: now.toISOString(),
     transactions,
     categories: categories.filter(c => c.Name).map(c => ({ id: c.id, name: c.Name, color: c.Color || '#8A9490', icon: c.Icon || 'Tag',
-      budget: Number(c.Budget) || 0, order: Number(c.Order) || 999, active: c.Active !== false })).sort((a, b) => a.order - b.order),
+      budget: Number(c.Budget) || 0, order: Number(c.Order) || 999, active: c.Active !== false })).sort((a, b) => a.name.localeCompare(b.name)),   // always A–Z
     merchants: catList.filter(m => m.Merchant).map(m => ({ merchant: m.Merchant, category: normalizeCategory(m.Category),
       count: counts[String(m.Merchant).toUpperCase()] || 0 })),
     settings: Object.fromEntries(settings.map(s => [s.Key, isNaN(Number(s.Value)) ? s.Value : Number(s.Value)])),
