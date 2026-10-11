@@ -59,5 +59,5 @@ export async function putWorkflow(wf) {
   return out;
 }
 
-export const TABLES = { transactions: 'wWtvo201WLTNBcqr', catList: 'IGDY61HhMcKpjvDT' };
+export const TABLES = { transactions: 'wWtvo201WLTNBcqr', catList: 'IGDY61HhMcKpjvDT', categories: 'P1PIMlK712Jbj1Mz', settings: 'Sh3QPvjfSEqmCi9a' };
 export const PROJECT_ID = 'rb6hVXbCTjBQVHmt';

@@ -29,6 +29,8 @@
 |---|---|
 | Table `transactions` | `wWtvo201WLTNBcqr` |
 | Table `Cat-list` | `IGDY61HhMcKpjvDT` |
+| Table `Categories` | `P1PIMlK712Jbj1Mz` (created P1) |
+| Table `Settings` | `Sh3QPvjfSEqmCi9a` (created P1, `total_budget`=600) |
 | n8n project | `rb6hVXbCTjBQVHmt` |
 | FA - add transaction | `I3EaJw8o1YNfkleN` |
 | FA - Get | `aoVZmvgR3GRTC8kR` |
