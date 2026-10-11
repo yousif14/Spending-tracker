@@ -9,6 +9,7 @@ import { searchMerchants } from '@/lib/fa/merchantSearch';
 import { parseAmount } from '@/lib/fa/money';
 import type { Tx } from '@/lib/fa/types';
 import { CategoryChips } from './CategoryChips';
+import { DateField } from './DateField';
 
 export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void }) {
   const { data } = useFeed();
@@ -55,11 +56,11 @@ export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => voi
   return (
     <Drawer open={!!tx} onOpenChange={o => { if (!o) onClose(); }}>
       <DrawerContent className="max-h-[92dvh]">
-        <DrawerHeader className="pb-1"><DrawerTitle>Edit payment</DrawerTitle></DrawerHeader>
+        <DrawerHeader className="pb-1 text-left"><DrawerTitle>Edit payment</DrawerTitle></DrawerHeader>
         <form className="space-y-4 overflow-y-auto px-4 pb-6" onSubmit={e => { e.preventDefault(); save(); }}>
           <label className="flex items-baseline gap-2 border-b border-border pb-2">
             <input inputMode="decimal" value={f.amount} aria-label="Amount" onChange={e => setF({ ...f, amount: e.target.value.replace(/[^\d.,]/g, '') })}
-              className="w-full bg-transparent font-display text-3xl tnum outline-none" />
+              className="w-full bg-transparent text-3xl font-extrabold tracking-tight tnum outline-none" />
             <span className="text-sm font-semibold text-muted-foreground">BHD</span>
           </label>
           <div>
@@ -74,10 +75,7 @@ export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => voi
             )}
           </div>
           <CategoryChips cats={cats} value={f.category} onChange={c => setF({ ...f, category: c })} />
-          <div className="grid grid-cols-2 gap-2">
-            <Input type="date" aria-label="Date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} />
-            <Input type="time" aria-label="Time" value={f.time} onChange={e => setF({ ...f, time: e.target.value })} />
-          </div>
+          <DateField date={f.date} onDate={d => setF({ ...f, date: d })} time={f.time} onTime={t => setF({ ...f, time: t })} />
           <Input placeholder="Tag (optional)" value={f.tag} onChange={e => setF({ ...f, tag: e.target.value })} aria-label="Tag" />
 
           {merchantOrCatChanged && sameMerchant > 1 && (
@@ -87,7 +85,7 @@ export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => voi
             </label>
           )}
 
-          <Button type="submit" size="lg" className="w-full" disabled={pending || !(parseAmount(f.amount) > 0) || !f.merchant.trim() || !f.category}>Save</Button>
+          <Button type="submit" size="lg" className="w-full text-base font-bold disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100" disabled={pending || !(parseAmount(f.amount) > 0) || !f.merchant.trim() || !f.category}>Save</Button>
 
           {!confirmDelete ? (
             <Button type="button" variant="ghost" className="w-full text-destructive hover:text-destructive" disabled={pending} onClick={() => setConfirmDelete(true)}>Delete</Button>

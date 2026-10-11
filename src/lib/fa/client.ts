@@ -16,5 +16,6 @@ export const fa = {
   deleteTx: (sn: string) => call('tx-delete', { sn }),
   merchant: (from: string, to?: string, category?: string) => call<{ updated: number }>('merchant', { from, to, category }),
   saveCategories: (items: Array<Record<string, unknown>>, rename?: { from: string; to: string }) => call('categories', { items, rename }),
+  deleteCategory: (name: string) => call<{ success: true; moved: number }>('category-delete', { name }),
   setSetting: (key: string, value: string | number) => call('settings', { key, value }),
 };

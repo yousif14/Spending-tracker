@@ -13,6 +13,8 @@ import { FilterBar } from '@/components/fa/FilterBar';
 import { TxRow } from '@/components/fa/TxRow';
 import { TxEditSheet } from '@/components/fa/TxEditSheet';
 import { listItem } from '@/components/fa/motion';
+import { SwipeRow } from '@/components/fa/SwipeRow';
+import { useSwipeDelete } from '@/hooks/useSwipeDelete';
 
 const PAGE = 150;   // rows rendered at a time — keeps "All time" (2,000+ rows) light on phones
 const dayLabel = (d: string) => format(new Date(d + 'T00:00:00'), 'EEE d MMM');
@@ -27,6 +29,7 @@ export default function Activity() {
   });
   const [editing, setEditing] = useState<Tx | null>(null);
   const [limit, setLimit] = useState(PAGE);
+  const { hidden, remove } = useSwipeDelete();
   useEffect(() => setLimit(PAGE), [filter, range]);
 
   // New-row highlight: SNs not in the previous feed (after the first load) glow for 2 s
@@ -44,11 +47,11 @@ export default function Activity() {
 
   const view = useMemo(() => {
     if (!data) return null;
-    const list = applyFilters(data.transactions, { ...filter, from: range.from, to: range.to });
+    const list = applyFilters(data.transactions.filter(t => !hidden.has(t.sn)), { ...filter, from: range.from, to: range.to });
     const shown = list.slice(0, limit);
     return { list, shown, groups: filter.sort === 'amount' ? null : groupByDay(shown), total: list.reduce((s, t) => s + t.amount, 0),
       colors: new Map(data.categories.map(c => [c.name, c.color])), cats: data.categories.filter(c => c.active) };
-  }, [data, filter, range, limit]);
+  }, [data, filter, range, limit, hidden]);
 
   if (isLoading && !data) return <div className="space-y-2">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>;
   if (isError && !data) return (
@@ -61,7 +64,9 @@ export default function Activity() {
 
   const row = (t: Tx) => (
     <motion.div key={t.sn} layout="position" {...listItem}>
-      <TxRow tx={t} color={view.colors.get(t.category)} highlight={fresh.has(t.sn)} onClick={() => setEditing(t)} />
+      <SwipeRow onEdit={() => setEditing(t)} onDelete={() => remove(t)} disabled={t.sn.startsWith('pending-')}>
+        <TxRow tx={t} color={view.colors.get(t.category)} highlight={fresh.has(t.sn)} onClick={() => setEditing(t)} />
+      </SwipeRow>
     </motion.div>
   );
 

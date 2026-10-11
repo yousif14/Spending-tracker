@@ -133,9 +133,14 @@ const ren = (name, x, table, tname) => dt(name, x, { operation: 'update', dataTa
     attemptToConvertTypes: false, convertFieldsToString: false }, options: {} }, { executeOnce: true, alwaysOutputData: true });
 ren('Categories: rename tx', 1100, TABLES.transactions, 'transactions');
 ren('Categories: rename cat-list', 1320, TABLES.catList, 'Cat-list');
-respond('Categories: ok', ok, 1540);
+dt('Categories: rename row', 1540, { operation: 'update', dataTableId: rl(TABLES.categories, 'Categories'),
+  filters: { conditions: [{ keyName: 'Name', keyValue: "={{ $('Categories').first().json.body.rename.from }}" }] },
+  columns: { mappingMode: 'defineBelow', value: { Name: "={{ $('Categories').first().json.body.rename.to }}" }, matchingColumns: [],
+    schema: [{ id: 'Name', displayName: 'Name', required: false, defaultMatch: false, display: true, type: 'string', readOnly: false, removed: false }],
+    attemptToConvertTypes: false, convertFieldsToString: false }, options: {} }, { executeOnce: true, alwaysOutputData: true });
+respond('Categories: ok', ok, 1760);
 link('Categories: rename?', 'Categories: rename tx', 0); link('Categories: rename?', 'Categories: ok', 1);
-chain('Categories: rename tx', 'Categories: rename cat-list', 'Categories: ok');
+chain('Categories: rename tx', 'Categories: rename cat-list', 'Categories: rename row', 'Categories: ok');
 
 // ---- POST fa/category-delete { name } — moves its transactions + Cat-list rows to Other, removes the category,
 //      and sends the moved list to the owner through the Joseph bot

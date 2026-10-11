@@ -20,7 +20,7 @@
     --secondary: 158 11% 18%;
     --secondary-foreground: 150 12% 91%;
     --muted: 158 11% 16%;
-    --muted-foreground: 155 9% 63%; /* #9AABA4 */
+    --muted-foreground: 155 10% 70%; /* #A9B8B2 — raised for contrast */
     --accent: 160 25% 18%;
     --accent-foreground: 162 54% 70%;
     --success: 162 54% 54%;
@@ -29,8 +29,8 @@
     --warning-foreground: 150 14% 7%;
     --destructive: 4 60% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 158 10% 19%;         /* #2A3531 */
-    --input: 158 10% 17%;
+    --border: 158 10% 21%;
+    --input: 158 9% 30%;            /* visible field outlines at night */
     --ring: 162 54% 54%;
     --radius: 0.875rem;
 
@@ -66,7 +66,7 @@
     --secondary: 150 9% 90%;
     --secondary-foreground: 157 13% 13%;
     --muted: 150 9% 90%;
-    --muted-foreground: 160 6% 43%; /* #66746F */
+    --muted-foreground: 160 7% 36%; /* darker than #66746F for contrast */
     --accent: 160 30% 92%;
     --accent-foreground: 164 78% 22%;
     --success: 164 78% 27%;
@@ -75,8 +75,8 @@
     --warning-foreground: 0 0% 100%;
     --destructive: 4 52% 50%;      /* #C2453D */
     --destructive-foreground: 0 0% 100%;
-    --border: 150 9% 90%;          /* #E3E8E5 */
-    --input: 150 9% 88%;
+    --border: 150 9% 87%;
+    --input: 150 7% 76%;            /* visible field outlines by day */
     --ring: 164 78% 27%;
 
     --gradient-primary: hsl(var(--primary));

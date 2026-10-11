@@ -15,4 +15,4 @@ export interface Feed {
   settings: { total_budget?: number; [k: string]: unknown };
 }
 
-export interface NewTx { date: string; time: string; merchant: string; amount: number; category: string; tag?: string; }
+export interface NewTx { date: string; time?: string; merchant: string; amount: number; category: string; tag?: string; }

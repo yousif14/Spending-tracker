@@ -1,20 +1,24 @@
 import type { Cat } from '@/lib/fa/types';
 
-/** Single-select category chips in the user's order; the selected chip is filled with the category colour */
+/** Chip style B (approved): coloured outline + dot; the selected chip fills with its colour */
+export function CatChip({ cat, on, onClick, role = 'radio' }: { cat: Pick<Cat, 'name' | 'color'>; on: boolean; onClick: () => void; role?: 'radio' | 'checkbox' }) {
+  return (
+    <button type="button" role={role} aria-checked={on} onClick={onClick}
+      style={{ borderColor: cat.color, ...(on ? { background: cat.color } : {}) }}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border-[1.5px] px-3 py-1.5 text-xs font-bold transition-colors active:scale-[0.97] ${
+        on ? 'text-white' : 'bg-card text-foreground hover:bg-muted'}`}>
+      <span className="h-[7px] w-[7px] rounded-full" style={{ background: on ? '#fff' : cat.color }} aria-hidden />
+      {cat.name}
+    </button>
+  );
+}
+
+/** Single-select category chips, always A–Z */
 export function CategoryChips({ cats, value, onChange }: { cats: Cat[]; value: string; onChange: (name: string) => void }) {
+  const sorted = [...cats].sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Category">
-      {cats.map(c => {
-        const on = c.name === value;
-        return (
-          <button type="button" key={c.name} role="radio" aria-checked={on} onClick={() => onChange(c.name)}
-            style={on ? { background: c.color, borderColor: c.color } : undefined}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors active:scale-[0.97] ${
-              on ? 'text-white' : 'border-border bg-card text-foreground hover:bg-muted'}`}>
-            {c.name}
-          </button>
-        );
-      })}
+      {sorted.map(c => <CatChip key={c.name} cat={c} on={c.name === value} onClick={() => onChange(c.name)} />)}
     </div>
   );
 }

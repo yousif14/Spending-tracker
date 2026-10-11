@@ -1,8 +1,9 @@
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, Plus, RefreshCw } from 'lucide-react';
+import { Menu, Moon, Plus, RefreshCw, Sun } from 'lucide-react';
 import { useState } from 'react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import type { ThemeMode } from '@/contexts/ThemeContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useCssVarHeight } from '@/hooks/useCssVarHeight';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -20,7 +21,7 @@ export function AppShell() {
   const [manual, setManual] = useState(false);   // spin only for refreshes the user asked for, not the 30 s auto-refresh
   const refresh = () => { setManual(true); refetch().finally(() => setManual(false)); };
   const { dataUpdatedAt, refetch, isError, data } = useFeed();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, mode, setMode, toggleTheme } = useTheme();
   const onSegment = SEGMENTS.some(s => s.to === loc.pathname);
   const headerRef = useCssVarHeight<HTMLElement>('--fa-header-h');
 
@@ -31,7 +32,10 @@ export function AppShell() {
           <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
             <button onClick={() => nav('/')} className="font-display text-xl tracking-tight">FA</button>
             <PeriodPill />
-            <button aria-label="Refresh" onClick={refresh} className="ml-auto rounded-full p-2 transition-colors hover:bg-muted">
+            <button aria-label={theme === 'dark' ? 'Switch to day view' : 'Switch to night view'} onClick={toggleTheme} className="ml-auto rounded-full p-2 transition-colors hover:bg-muted">
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button aria-label="Refresh" onClick={refresh} className="rounded-full p-2 transition-colors hover:bg-muted">
               <RefreshCw className={`h-4 w-4 ${manual ? 'animate-spin' : ''}`} />
             </button>
             <DropdownMenu>
@@ -41,7 +45,12 @@ export function AppShell() {
                 <DropdownMenuItem onClick={() => nav('/categories')}>Categories</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => nav('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={toggleTheme}>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</DropdownMenuItem>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">View</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={mode} onValueChange={v => setMode(v as ThemeMode)}>
+                  <DropdownMenuRadioItem value="light">Day</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark">Night</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="system">Follow phone</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

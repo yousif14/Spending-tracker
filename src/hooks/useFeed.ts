@@ -29,7 +29,7 @@ function useFeedMutation<V>(fn: (v: V) => Promise<unknown>, apply: (f: Feed, v: 
 }
 
 export const useAddTx = () => useFeedMutation((t: NewTx) => fa.addTx(t), (f, t) => ({ ...f, transactions: [{
-  sn: 'pending-' + Date.now(), date: t.date, time: t.time, merchant: t.merchant, amount: t.amount, currency: 'BHD',
+  sn: 'pending-' + Date.now(), date: t.date, time: t.time ?? '', merchant: t.merchant, amount: t.amount, currency: 'BHD',
   category: t.category, tag: t.tag ?? '', name: '-', cardEnding: '', payeeIban: '', source: 'manual' as const }, ...f.transactions] }));
 
 export const useUpdateTx = () => useFeedMutation(({ sn, patch }: { sn: string; patch: Partial<Tx> }) => fa.updateTx(sn, patch),
@@ -42,3 +42,21 @@ export const useMerchantUpdate = () => useFeedMutation(
   ({ from, to, category }: { from: string; to?: string; category?: string }) => fa.merchant(from, to, category),
   (f, { from, to, category }) => ({ ...f, transactions: f.transactions.map(t =>
     t.merchant === from ? { ...t, merchant: to || t.merchant, category: category || t.category } : t) }));
+
+export const useSaveCategory = () => useFeedMutation(
+  async ({ name, color, from }: { name: string; color: string; from?: string }) => {
+    if (from && from !== name) await fa.saveCategories([], { from, to: name });
+    return fa.saveCategories([{ Name: name, Color: color }]);
+  },
+  (f, { name, color, from }) => {
+    const exists = f.categories.some(c => c.name === (from ?? name));
+    const categories = exists
+      ? f.categories.map(c => (c.name === (from ?? name) ? { ...c, name, color } : c))
+      : [...f.categories, { id: -Date.now(), name, color, icon: 'Tag', budget: 0, order: 999, active: true }];
+    const transactions = from && from !== name ? f.transactions.map(t => (t.category === from ? { ...t, category: name } : t)) : f.transactions;
+    return { ...f, transactions, categories: categories.sort((a, b) => a.name.localeCompare(b.name)) };
+  });
+
+export const useDeleteCategory = () => useFeedMutation((name: string) => fa.deleteCategory(name),
+  (f, name) => ({ ...f, categories: f.categories.filter(c => c.name !== name),
+    transactions: f.transactions.map(t => (t.category === name ? { ...t, category: 'Other' } : t)) }));

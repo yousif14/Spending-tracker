@@ -12,6 +12,8 @@ import { CategoryIcon } from '@/utils/categoryIcons';
 import { Bar, CountUp } from '@/components/fa/motion';
 import { TxRow } from '@/components/fa/TxRow';
 import { TxEditSheet } from '@/components/fa/TxEditSheet';
+import { SwipeRow } from '@/components/fa/SwipeRow';
+import { useSwipeDelete } from '@/hooks/useSwipeDelete';
 import type { Tx } from '@/lib/fa/types';
 
 export const STATUS_COLOR: Record<Status, string> = {
@@ -23,16 +25,17 @@ export default function Overview() {
   const { range, config } = usePeriod();
   const nav = useNavigate();
   const [editing, setEditing] = useState<Tx | null>(null);
+  const { hidden, remove } = useSwipeDelete();
 
   const view = useMemo(() => {
     if (!data) return null;
     const budget = Number(data.settings.total_budget ?? 600);
     const s = periodSummary(data.transactions, range, budget, todayBahrain());
     const cats = categoryTotals(data.transactions, range, data.categories);
-    const recent = applyFilters(data.transactions, { ...EMPTY_FILTER, from: range.from, to: range.to }).slice(0, 8);
+    const recent = applyFilters(data.transactions.filter(t => !hidden.has(t.sn)), { ...EMPTY_FILTER, from: range.from, to: range.to }).slice(0, 8);
     const colors = new Map(data.categories.map(c => [c.name, c.color]));
     return { s, cats, recent, colors, maxCat: Math.max(1, ...cats.map(c => c.spent)) };
-  }, [data, range]);
+  }, [data, range, hidden]);
 
   if (isLoading && !data) return <OverviewSkeleton />;
   if (isError && !data) return (
@@ -52,7 +55,7 @@ export default function Overview() {
       <section className="rounded-2xl border border-border bg-card p-5">
         <p className="text-sm font-semibold text-muted-foreground">Spent this period</p>
         <p className="mt-1 flex items-baseline gap-2">
-          <CountUp value={s.spent} className="font-display text-[40px] leading-none tracking-tight tnum" />
+          <CountUp value={s.spent} className="text-[40px] font-extrabold leading-none tracking-tight tnum" />
           <span className="text-sm font-semibold text-muted-foreground">BHD</span>
         </p>
         {fiscal && (<>
@@ -101,7 +104,11 @@ export default function Overview() {
         </div>
         {recent.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nothing yet. Tap + to add a payment.</p> : (
           <div className="rounded-2xl border border-border bg-card p-1">
-            {recent.map(t => <TxRow key={t.sn} tx={t} color={colors.get(t.category)} onClick={() => setEditing(t)} />)}
+            {recent.map(t => (
+              <SwipeRow key={t.sn} surface="bg-card" onEdit={() => setEditing(t)} onDelete={() => remove(t)} disabled={t.sn.startsWith('pending-')}>
+                <TxRow tx={t} color={colors.get(t.category)} onClick={() => setEditing(t)} />
+              </SwipeRow>
+            ))}
           </div>
         )}
       </section>

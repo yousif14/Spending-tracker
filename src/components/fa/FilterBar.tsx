@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EMPTY_FILTER, type TxFilter } from '@/lib/fa/filters';
 import { useCssVarHeight } from '@/hooks/useCssVarHeight';
+import { CatChip } from './CategoryChips';
 import type { Cat, Source } from '@/lib/fa/types';
 
 const SAVED_KEY = 'fa:savedFilters';
@@ -48,16 +49,10 @@ export function FilterBar({ filter, onChange, cats }: { filter: TxFilter; onChan
           <button key={'s-' + s.name} onClick={() => onChange(s.filter)}
             className="shrink-0 rounded-full border border-dashed border-primary/60 px-3 py-1 text-xs font-semibold text-primary">{s.name}</button>
         ))}
-        {cats.map(c => {
-          const on = filter.categories.includes(c.name);
-          return (
-            <button key={c.name} onClick={() => onChange({ ...filter, categories: toggle(filter.categories, c.name) })} aria-pressed={on}
-              style={on ? { background: c.color, borderColor: c.color } : undefined}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${on ? 'text-white' : 'border-border bg-card hover:bg-muted'}`}>
-              {c.name}
-            </button>
-          );
-        })}
+        {[...cats].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+          <CatChip key={c.name} cat={c} role="checkbox" on={filter.categories.includes(c.name)}
+            onClick={() => onChange({ ...filter, categories: toggle(filter.categories, c.name) })} />
+        ))}
       </div>
 
       <Drawer open={open} onOpenChange={setOpen}>
