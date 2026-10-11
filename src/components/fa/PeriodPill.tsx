@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Check, ChevronDown } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { getCurrentPeriodWindow, getPeriodWindow, type DateRangeConfig } from '@/utils/period';
 import { usePeriod } from '@/state/period';
@@ -43,7 +42,7 @@ export function PeriodPill() {
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent className="max-h-[85dvh]">
           <DrawerHeader><DrawerTitle>Period</DrawerTitle></DrawerHeader>
-          <div className="overflow-y-auto px-4 pb-6">
+          <div className="overflow-y-auto overflow-x-hidden px-4 pb-[calc(env(safe-area-inset-bottom)+24px)]">
             <ul className="divide-y divide-border rounded-xl border border-border">
               {lastFiscalMonths(12).map((w, i) => {
                 const c: DateRangeConfig = { mode: 'fiscal', month: w.month, year: w.year };
@@ -61,16 +60,32 @@ export function PeriodPill() {
               <Button variant={config.mode === 'last3months' ? 'default' : 'outline'} onClick={() => pick({ mode: 'last3months' })}>Last 3 months</Button>
               <Button variant={config.mode === 'all' ? 'default' : 'outline'} onClick={() => pick({ mode: 'all' })}>All time</Button>
             </div>
-            <p className="mt-5 mb-2 text-sm font-semibold">Custom</p>
+            <p className="mb-2 mt-5 text-sm font-bold">Custom range</p>
             <div className="grid grid-cols-2 gap-2">
-              <Input type="date" aria-label="From" value={from} onChange={e => setFrom(e.target.value)} />
-              <Input type="date" aria-label="To" value={to} onChange={e => setTo(e.target.value)} />
+              <DateBox label="From" value={from} onChange={setFrom} />
+              <DateBox label="To" value={to} onChange={setTo} />
             </div>
-            <Button className="mt-2 w-full" variant="secondary" disabled={!from || !to || from > to}
-              onClick={() => pick({ mode: 'custom', from, to })}>Apply custom range</Button>
+            {from && to && from > to && <p className="mt-1.5 text-xs font-semibold text-destructive">"From" must be before "To".</p>}
+            <Button className="mt-3 w-full font-bold disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100" size="lg"
+              disabled={!from || !to || from > to} onClick={() => pick({ mode: 'custom', from, to })}>Show this range</Button>
           </div>
         </DrawerContent>
       </Drawer>
     </>
+  );
+}
+
+/** Tappable date box; the transparent native input on top opens the phone's own date picker */
+function DateBox({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="relative block min-w-0 rounded-xl border border-input bg-card px-3 py-2 focus-within:border-primary">
+      <span className="block text-[11px] font-semibold text-muted-foreground">{label}</span>
+      <span className="mt-0.5 flex items-center gap-1.5 text-sm font-bold tnum">
+        <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="truncate">{value ? format(new Date(value + 'T00:00:00'), 'd MMM yyyy') : 'Pick a date'}</span>
+      </span>
+      <input type="date" aria-label={label} value={value} onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 h-full w-full min-w-0 cursor-pointer appearance-none opacity-0" />
+    </label>
   );
 }
