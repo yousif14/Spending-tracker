@@ -17,6 +17,7 @@ services:
       - VITE_DEFAULT_FROM=${VITE_DEFAULT_FROM}
       - VITE_DEFAULT_TO=${VITE_DEFAULT_TO}
       - TZ=${TZ}
+      - FA_API_KEY=${FA_API_KEY}
     ports:
       - "3002:80"
 
