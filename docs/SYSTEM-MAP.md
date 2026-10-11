@@ -11,14 +11,14 @@ Telegram bot replies (Fawri merchant / category buttons) ─────┤
                                    n8n "FA - add transaction"  ──► Data Table: transactions
                                                               └──► Data Table: Cat-list (merchant → category memory)
 
-React PWA (this repo)  ──fetch https://n8n.11homelab.cc/webhook/...──►  n8n "FA - Get" / "FA - Update Transaction" / "FA - Merchant" / "FA - add transaction"
+React PWA (this repo) ──/api/fa/*──► nginx (adds X-FA-Key) ──/webhook/fa/*──► n8n "FA - App API" ──► the same Data Tables
 ```
 
 - **Frontend:** Vite + React 18 + TS + shadcn/Tailwind + TanStack Query, originally from Lovable. Repo: `github.com/yousif14/Spending-tracker`.
 - **Backend:** n8n at `https://n8n.11homelab.cc`. There's no server of its own: every API is an n8n webhook.
 - **Database:** two **n8n Data Tables**, not Postgres. `init-scripts/01-init-financial-db.sql` is a leftover from an earlier design and nothing uses it.
 - **Hosting:** `financial-composer.yaml` runs the `financial-app` container (nginx, host port 3002) plus `financial-app-tunnel` (Cloudflare tunnel) on the external docker network `n8n-net`. Redeploy with `docker compose -f financial-composer.yaml up -d --build` (`Build-Comand.ps1`).
-- **Auth (since P3):** the new App API (`/webhook/fa/*`) and the iPhone webhook `addNewTransaction` require header `X-FA-Key` (n8n credential "FA App Key" `xlromAeekU2zUicJ`; value `FA_API_KEY` in `.env`/`.env.local`, never committed). The app's nginx adds it for `/api/fa/*`. The old app webhooks below are still public until P4 moves the app to `/api/fa/*`. `VITE_N8N_API_KEY` is declared but never sent.
+- **Auth (since P3):** the new App API (`/webhook/fa/*`) and the iPhone webhook `addNewTransaction` require header `X-FA-Key` (n8n credential "FA App Key" `xlromAeekU2zUicJ`; value `FA_API_KEY` in `.env`/`.env.local`, never committed). The app's nginx adds it for `/api/fa/*`. Since P5 the old app webhooks are off and `manualAddTransaction` needs the key too; the only open path is the Telegram callback (Telegram can't send headers).
 - **Timezone:** Asia/Bahrain. Currency: BHD (3 decimals).
 
 ## 2. Database (n8n Data Tables, project `rb6hVXbCTjBQVHmt`)
@@ -55,20 +55,14 @@ React PWA (this repo)  ──fetch https://n8n.11homelab.cc/webhook/...──►
 
 ## 3. Webhook API (what the app calls)
 
-All calls go to `https://n8n.11homelab.cc/webhook` plus the path below (`src/lib/api.ts`, `WEBHOOK_BASE_URL` is hardcoded). Webhooks with `:params` are addressed as `/<webhookId>/<path>`.
+The app (v2.0.0, `src/pages/fa/*`) uses only the App API below. The pre-upgrade webhooks were retired in P5 (`n8n/workflows/p5-lock-legacy.mjs`; `--undo` brings them back):
 
-| App method | HTTP + URL | n8n workflow | Status |
-|---|---|---|---|
-| `getTransactions` | `GET /api/transactions` | FA - Get `aoVZmvgR3GRTC8kR` | ✅ Returns **all** rows as `{ $json: [...] }`. `from`/`to` are ignored, so the app filters client-side. |
-| `getCategories` | `GET /api/categoriesHeads` | FA - Get | ✅ `{ categories: [...distinct Cat-list Category], count }` |
-| (unused) | `GET /api/categories` | FA - Get | ✅ Returns all Cat-list rows. |
-| `updateTransaction` | `PUT /update-transaction/api/update-transactions/:sn` | FA - Update Transaction `PAVfWilnR0E9msqA` | ✅ Body: lowercase keys `date,time,merchant,amount,currency,category,tag,name,cardEnding`. Merges onto the existing row. |
-| `deleteTransaction` | `DELETE /delete-transaction/api/delete-transactions/:sn` | FA - Update Transaction | ✅ |
-| `createManualTransaction` | `POST /manualAddTransaction` | FA - add transaction `I3EaJw8o1YNfkleN` | ✅ Requires `date,time,merchant,amount,category`. Also appends to Google Sheet "Spending Tracker/Logs" and runs dedupe. |
-| `updateMerchantCategory` | `PUT /update-merchant/api/update-Merchant/:merchantName` | FA - Merchant `EGiQwEDvAKgHXebK` | ⚠️ Partial, see §5. |
-| `deleteMerchant` | `DELETE /delete-transaction/api/delete-Merchant/:name` | — | ❌ No such webhook (404). Currently not called by any page. |
-| `getTransactionStats` | `GET /api/transactions/stats` | — | ❌ Missing. The app falls back to client-side calculation. Only Dashboard uses it, and Dashboard isn't routed. |
-| `getTransactionsByMonth`, `getSummary`, `createBudget`, `ingestSms`, `createTransaction` | `/api/transactions/month/*`, `/api/summary`, `/api/budget`, `/api/ingest-sms`, `POST /api/transactions` | — (some exist only in the **inactive** "API - Transactions (Array)" `Fpsq3CK9cFfaVBQc`) | ❌ Dead code paths (`useApi.ts` hooks). |
+| Old path | Workflow | Now |
+|---|---|---|
+| `GET /api/transactions`, `/api/categoriesHeads`, `/api/categories` | FA - Get `aoVZmvgR3GRTC8kR` | deactivated (404) |
+| `PUT/DELETE /update-transaction/…`, `/delete-transaction/…` | FA - Update Transaction `PAVfWilnR0E9msqA` | deactivated |
+| `PUT /update-merchant/…` | FA - Merchant `EGiQwEDvAKgHXebK` | deactivated |
+| `POST /manualAddTransaction` | FA - add transaction `I3EaJw8o1YNfkleN` | needs `X-FA-Key` (403 without) |
 
 ### App API (P3) — workflow "FA - App API" `IEW0HesCX5GkbAFt`, built by `n8n/workflows/fa-app-api.build.mjs`
 
@@ -81,26 +75,28 @@ The app calls these as `/api/fa/<path>`; nginx (`nginx/default.conf.template`, o
 | `fa/tx-update` | POST | `{ sn, date?, time?, merchant?, amount?, category?, tag? }` | `{ success }`; 404 if SN unknown |
 | `fa/tx-delete` | POST | `{ sn }` | `{ success }` |
 | `fa/merchant` | POST | `{ from, to?, category? }` | `{ success, updated }` (all transactions + Cat-list upsert) |
-| `fa/categories` | POST | `{ items: [{ id?, Name, Color?, Icon?, Budget?, Order?, Active? }], rename?: { from, to } }` | `{ success }` (rename updates transactions + Cat-list) |
-| `fa/settings` | POST | `{ key, value }` | `{ success }` |
+| `fa/categories` | POST | `{ items: [{ id?, Name, Color?, Icon?, Budget?, Order?, Active? }], rename?: { from, to } }` | `{ success }`. Upsert by `Name` writes **every** column, so send the full row (the app does). `rename` updates transactions, Cat-list and the Categories row. |
+| `fa/category-delete` | POST | `{ name }` | `{ success, moved }`: its transactions and Cat-list rows move to `Other`, the row is deleted, and Joseph sends the moved list on Telegram. `Other` itself is refused (400). |
+| `fa/settings` | POST | `{ key, value }` | `{ success }` (e.g. `total_budget`) |
 
-The old nginx `/api/* → /webhook/api/*` block was removed in P3 (the current app calls n8n directly).
+
 
 ## 4. n8n workflows in the finance system
 
 | Workflow | ID | Active | Role |
 |---|---|---|---|
 | **FA - add transaction** | `I3EaJw8o1YNfkleN` | ✅ | Main ingest. See flow below. |
-| **FA - Get** | `aoVZmvgR3GRTC8kR` | ✅ | Read APIs (transactions, categories). |
-| **FA - Update Transaction** | `PAVfWilnR0E9msqA` | ✅ | Edit and delete by SN. |
-| **FA - Merchant** | `EGiQwEDvAKgHXebK` | ✅ | Re-categorise a merchant. |
+| **FA - App API** | `IEW0HesCX5GkbAFt` | ✅ | Everything the app calls (`fa/*`, key required). |
+| FA - Get | `aoVZmvgR3GRTC8kR` | off (P5) | Old read APIs. |
+| FA - Update Transaction | `PAVfWilnR0E9msqA` | off (P5) | Old edit/delete by SN. |
+| FA - Merchant | `EGiQwEDvAKgHXebK` | off (P5) | Old merchant re-categorise. |
 | **FA - Delete Duplicate Transactions** | `fKkEmIilkrKrAEx4` | ✅ | Sub-workflow called after every insert. Key = `MERCHANT\|Date\|HH:MM\|Amount(3dp)`; keeps the lowest `id`. |
 | FA - Smart Search | `3g0xij49PpHLU31l` | ✅ | Telegram NL query → LLM intent (OpenRouter grok-4-fast) → filters/sums → reply. |
 | FA - UpperCase | `KHftM2dLmhu5rq1j` | off | One-off maintenance: upper-case merchants in both tables. |
 | API - Transactions (Array) | `Fpsq3CK9cFfaVBQc` | off | Legacy API (summary, POST transactions, sheets import). |
 | Spending Tracker - Logs (Telegram → Google Sheets) | `FfjFWLUe74aVJSii` | off | Legacy, pre-Data-Table. |
 | import data from google sheets | `6Z8ckXB0hzTel4Ii` | off | Source of the `DD/MM/YYYY` rows. |
-| Joseph – Finance Query | `RIbvggdanZ2tzERx` | off | Joseph assistant's spending tool, which reads `transactions`. |
+| Joseph – Finance Query | `RIbvggdanZ2tzERx` | ✅ | Joseph's spending tool (key required), reads `transactions`. Joseph runs on Claude Haiku 5.5. |
 | Daily Backup / Daily n8n Backup to Google Drive | `IpQHCRNWXAbmmNVc` / `0JuiRnK7yuEZYyvj` | off / ✅ | Back up data tables. |
 
 ### Ingest flow (FA - add transaction)
@@ -124,19 +120,12 @@ Telegram chat id is `1804897276`. The trigger node `combined-telegram-trigger` h
 
 ## 5. Known issues and gotchas
 
-1. **FA - Merchant only partly works.**
-   - It ignores `name`, so renaming a merchant from the Merchants page silently does nothing.
-   - It only updates transactions whose `Category` equals the merchant's *old* Cat-list category.
-   - Cat-list lookup is an exact string match. Merchants missing from Cat-list (e.g. manual entries) return "Merchant not found".
-2. **The whole table goes to the browser on every load** (~2.1k rows and growing). All filtering, stats, and budget maths run client-side.
-3. ~~Mixed `Date` formats~~ fixed in P1: all rows are ISO. Joseph's finance code still accepts both.
-4. Category typos were fixed in P1. Category colours in the app still come from `src/utils/categoryColors.ts`, not from `Categories.Color` (P5).
-5. **Auth is partial (P3):** `fa/*` and `addNewTransaction` need `X-FA-Key`; the old app webhooks (FA - Get / Update / Merchant, `manualAddTransaction`) and the Telegram callback path are still open until P4 switches the app over. Note: `.env` was tracked in the public GitHub repo until P3 (`CLOUDFLARE_TUNNEL_TOKEN` is in history).
-6. The FA bot token now lives in n8n's environment (`FA_TG_BOT_TOKEN` in `C:\Data\n8n\.env`, `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`); HTTP Telegram nodes use `{{ $env.FA_TG_BOT_TOKEN }}`. Old workflow versions in n8n's history still contain it, so **rotate it** (BotFather `/revoke`, then update `.env` and the "Spending Tracker" credential).
-7. The Dedupe key ignores `Card_ending`, so two identical purchases in the same minute collapse into one.
-8. Budget is hard-coded in the frontend: `DEFAULT_TOTAL_BUDGET = 600` in `Budget.tsx`, and a default of 750 in stats. The `budgets` concept doesn't exist in n8n.
-9. Fiscal month runs from the 23rd to the 22nd (`src/utils/period.ts`, `getCurrentPeriodWindow`). The localStorage key is `txnRange:v1`.
-10. `Dashboard.tsx` exists but has no route. The routes are `/`, `/transactions`, `/budget`, `/categories`, `/merchants`, and `/settings`.
+1. **The whole table goes to the browser** in one `fa/feed` call (~2.1k rows and growing, refreshed every 30 s). All filtering and stats run client-side; fine for years at this rate.
+2. **Tokens to rotate:** the FA bot token is in old n8n workflow versions (now read from `FA_TG_BOT_TOKEN` in `C:\Data\n8n\.env`), and `CLOUDFLARE_TUNNEL_TOKEN` is in the public repo's history (`.env` was tracked until P3).
+3. The Telegram callback path stays open (Telegram can't send a header); it only acts on SNs and buttons the bot sent.
+4. The dedupe key ignores `Card_ending`, so two identical purchases in the same minute collapse into one.
+5. Fiscal month runs from the 23rd to the 22nd (`src/utils/period.ts`). The app keeps the chosen period in localStorage `fa:period:v2` and the view in `fa:theme-mode`.
+6. Categories are always shown A–Z (app and Telegram); the `Order` column is kept but unused. Category icons come from `Categories.Icon` (lucide name) and fall back to a name map in `src/utils/categoryIcons.tsx`.
 
 ## 6. Working with n8n
 
