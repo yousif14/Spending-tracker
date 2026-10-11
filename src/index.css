@@ -210,3 +210,6 @@
     @apply bg-card border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm;
   }
 }
+
+/* our own pull-to-refresh; stop the browser's from firing too */
+html, body { overscroll-behavior-y: contain; }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { LoadError } from '@/components/fa/LoadError';
 import { useNavigate } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
@@ -24,7 +25,7 @@ const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const ms = (d: string) => new Date(d + 'T00:00:00Z').getTime();
 
 export default function Stats() {
-  const { data, isLoading } = useFeed();
+  const { data, isLoading, isError, refetch } = useFeed();
   const { range, config } = usePeriod();
   const nav = useNavigate();
   const reduce = useReducedMotion();
@@ -65,13 +66,14 @@ export default function Stats() {
     return {
       cmp, prevLabel, colors, trend, keys, heat, heatMax: Math.max(1, ...heat.map(h => h.total)),
       avg: averages(txs, range, todayBahrain()),
-      merchants: topMerchants(txs, range, 10, by),
     };
-  }, [data, range, config, by]);
+  }, [data, range, config]);
+  const merchants = useMemo(() => (data ? topMerchants(data.transactions, range, 10, by) : []), [data, range, by]);
 
   if (isLoading && !data) return <div className="space-y-4">{[48, 56, 72, 40].map((h, i) => <Skeleton key={i} className="rounded-2xl" style={{ height: h * 4 }} />)}</div>;
+  if (isError && !data) return <LoadError what="your stats" onRetry={() => refetch()} />;
   if (!view) return null;
-  const { cmp, prevLabel, colors, trend, keys, heat, heatMax, avg, merchants } = view;
+  const { cmp, prevLabel, colors, trend, keys, heat, heatMax, avg } = view;
   const color = (k: string) => k === REST ? REST_COLOR : colors.get(k) ?? '#8A9490';
   const maxMerchant = Math.max(1, ...merchants.map(m => by === 'total' ? m.total : m.count));
   const compareRows = cmp.categories.filter(c => c.current > 0 || c.previous > 0);
@@ -118,9 +120,9 @@ export default function Stats() {
               <BarChart data={trend} margin={{ top: 4, right: 0, bottom: 0, left: -12 }} barCategoryGap="22%">
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }} />
                 <YAxis tickLine={false} axisLine={false} width={44} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickFormatter={v => `${Math.round(v)}`} />
-                <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.6)' }} content={<TrendTip color={color} />} />
+                <Tooltip isAnimationActive={false} cursor={{ fill: 'hsl(var(--muted) / 0.6)' }} content={<TrendTip color={color} />} />
                 {keys.map((k, i) => (
-                  <RBar key={k} dataKey={k} stackId="s" fill={color(k)} isAnimationActive={!reduce} animationDuration={500}
+                  <RBar key={k} dataKey={k} stackId="s" fill={color(k)} isAnimationActive={!reduce} animationDuration={250}
                     radius={i === keys.length - 1 ? [5, 5, 0, 0] : 0} />
                 ))}
               </BarChart>

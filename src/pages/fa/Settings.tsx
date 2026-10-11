@@ -11,7 +11,8 @@ const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('en-GB', { hour: '2
 
 export default function Settings() {
   const { mode, setMode } = useTheme();
-  const { dataUpdatedAt, refetch, isFetching } = useFeed();
+  const { dataUpdatedAt, refetch } = useFeed();
+  const [spin, setSpin] = useState(false);   // only for taps, not the 30 s auto-refresh
   const nav = useNavigate();
   const [install, setInstall] = useState<InstallPrompt | null>(null);
 
@@ -52,8 +53,8 @@ export default function Settings() {
               <span className="block text-sm font-semibold">Last synced</span>
               <span className="block text-xs text-muted-foreground tnum">{dataUpdatedAt ? hhmm(dataUpdatedAt) : '—'} · refreshes every 30 s</span>
             </span>
-            <Button variant="outline" size="sm" className="gap-1.5 font-bold" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
+            <Button variant="outline" size="sm" className="gap-1.5 font-bold" onClick={() => { setSpin(true); refetch().finally(() => setSpin(false)); }} disabled={spin}>
+              <RefreshCw className={`h-4 w-4 ${spin ? 'animate-spin' : ''}`} /> Refresh
             </Button>
           </li>
         </ul>
@@ -89,7 +90,7 @@ function Row({ label, value }: { label: string; value: string }) {
 function LinkRow({ label, hint, onClick }: { label: string; hint: string; onClick: () => void }) {
   return (
     <li>
-      <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50">
+      <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/60 [@media(hover:hover)]:hover:bg-muted/50">
         <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </button>

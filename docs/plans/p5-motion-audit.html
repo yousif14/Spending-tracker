@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P5 motion and design audit</title>
+<style>
+:root{--bg:#f6f7f5;--card:#fff;--fg:#17201e;--mute:#5d6966;--line:#dde3e0;--accent:#1f7a6d;--hi:#b3261e;--hi-bg:#fbe9e7;--md:#8a5a00;--md-bg:#fdf1d6;--lo:#3b5f8a;--lo-bg:#e6eef7;--code:#eef1ef}
+@media (prefers-color-scheme:dark){:root{--bg:#101615;--card:#18201e;--fg:#e6ece9;--mute:#9aa7a3;--line:#2a3532;--accent:#4fc2b0;--hi:#ff8a80;--hi-bg:#3a1d1a;--md:#f0c15a;--md-bg:#3a2e12;--lo:#8db4e6;--lo-bg:#1c2a3b;--code:#0d1211}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.15rem;margin:32px 0 8px}
+p{margin:6px 0}.mute{color:var(--mute);font-size:.9rem}
+.f{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.f h3{margin:0 0 4px;font-size:1rem}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;margin-right:6px}
+.high{background:var(--hi-bg);color:var(--hi)}.medium{background:var(--md-bg);color:var(--md)}.low{background:var(--lo-bg);color:var(--lo)}
+.loc{font:.82rem ui-monospace,Menlo,Consolas,monospace;color:var(--accent);word-break:break-all}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:10px;overflow-x:auto;font:.8rem/1.45 ui-monospace,Menlo,Consolas,monospace;margin:8px 0 0}
+code{font:.85em ui-monospace,Menlo,Consolas,monospace;background:var(--code);padding:1px 4px;border-radius:4px}
+.ok li{margin:3px 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem}td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
+</style>
+</head>
+<body>
+<main>
+<h1>P5 motion and design audit</h1>
+<p class="mute">Branch fa-upgrade, 2026-10-11. Lens: Emil Kowalski primary (frequent actions get little or no motion), Jakub Krehel secondary, Jhey Tompkins only for empty states. Approved decisions (Calm Ledger teal, Manrope, outline+dot chips, A to Z categories, day/night follows phone) are not questioned. Items fixed after the P4 audit are not repeated. Read-only audit; no source was changed.</p>
+
+<h2>Summary</h2>
+<p><span class="tag high">4 high</span><span class="tag medium">9 medium</span><span class="tag low">8 low</span></p>
+<p class="mute">Overall the new screens are restrained: only transform and opacity animate, the segment pill and FAB are right-sized, reduced motion is honoured app-wide (<code>MotionConfig</code> plus the CSS guard). The problems are keyboard-driven motion, sheets that cannot animate out, and a few state bugs in swipe-delete.</p>
+
+<h2>High</h2>
+
+<div class="f"><h3><span class="tag high">high</span>Edit sheet has no exit animation</h3>
+<p class="loc">src/components/fa/TxEditSheet.tsx:32 (same pattern: src/pages/fa/Categories.tsx:89-90)</p>
+<p><code>if (!tx) return null</code> unmounts the whole Drawer the instant <code>onClose</code> runs, so the sheet vanishes instead of sliding away. This is the most frequent sheet in the app (Activity, Stats, swipe-right edit). Categories has the milder form: <code>{editing &amp;&amp; ...}</code> and the title read <code>editing?.from</code>, so the form blanks and the title flips to "New category" while vaul is still closing.</p>
+<p><b>Fix:</b> remember the last value and keep rendering it while closed.</p>
+<pre>// TxEditSheet: replace line 32
+const last = useRef(tx); if (tx) last.current = tx;
+const cur = tx ?? last.current;
+if (!cur) return null;           // only before the first open
+// ...then use `cur` instead of `tx` in the body; keep open={!!tx}
+
+// Categories: same idea
+const lastEd = useRef(editing); if (editing) lastEd.current = editing;
+const ed = editing ?? lastEd.current;   // render the form and title from `ed`; open={!!editing}</pre></div>
+
+<div class="f"><h3><span class="tag high">high</span>Activity list animates on every keystroke, filter change and "Show more"</h3>
+<p class="loc">src/pages/fa/Activity.tsx:66, 90, 94 and src/components/fa/motion.tsx:40-44</p>
+<p>Every row is a <code>layout="position"</code> motion node (up to 150) and enters with opacity, y and <code>filter: blur(2px)</code>. Typing in search or toggling a filter re-enters and exits dozens of rows (keyboard-initiated, so it should never animate), "Show more" fires 150 blur enters at once, and the blur is a paint-heavy filter on a phone. The exit also leaves a 150 ms empty gap before siblings slide up after a swipe-delete.</p>
+<p><b>Fix:</b> animate only genuinely new rows and deletes; swap the list instantly on filter/range change; collapse height on delete.</p>
+<pre>// motion.tsx
+export const listItem = {
+  initial: { opacity: 0, y: 6 },                       // blur removed
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT } },
+  exit: { opacity: 0, height: 0, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+};
+
+// Activity.tsx row()
+&lt;motion.div key={t.sn} layout="position" className="overflow-hidden"
+  {...listItem} initial={fresh.has(t.sn) ? listItem.initial : false}&gt;
+
+// both AnimatePresence blocks: remount on filter/range change so nothing animates then
+const listKey = JSON.stringify([filter, range]);
+&lt;AnimatePresence initial={false} key={listKey}&gt; ...</pre>
+<p class="mute">Optional: drop <code>layout="position"</code> when <code>view.shown.length &gt; 60</code> (measuring 150 nodes on each render is the main jank source on search typing).</p></div>
+
+<div class="f"><h3><span class="tag high">high</span>Swipe-delete loses callbacks when two rows are deleted within 4.5 s</h3>
+<p class="loc">src/hooks/useSwipeDelete.ts:20-23</p>
+<p><code>del</code> is one shared mutation. TanStack Query only fires the per-call <code>onError/onSettled</code> of the latest <code>mutate()</code>. Delete row A, then row B within the undo window: A's callbacks are dropped, so if A fails it stays hidden with no error toast and no unhide (ghost state until reload). Callbacks are also dropped if the user leaves Activity before the timer fires.</p>
+<p><b>Fix:</b> use the promise API, which is per call.</p>
+<pre>const timer = setTimeout(() =&gt; {
+  if (undone) return;
+  del.mutateAsync(tx.sn)
+    .catch(() =&gt; toast.error("Couldn't delete. Try again."))
+    .finally(() =&gt; unhide(tx.sn));
+}, UNDO_MS);</pre>
+<p class="mute">Note: <code>.finally(unhide)</code> after an error is correct (row returns); after success the optimistic cache update already removed it.</p></div>
+
+<div class="f"><h3><span class="tag high">high</span>Segment switch double-flashes: exiting page renders the new route</h3>
+<p class="loc">src/components/fa/AppShell.tsx:81-87</p>
+<p><code>&lt;Outlet /&gt;</code> inside <code>AnimatePresence mode="wait"</code> reads the current route context, so the exiting wrapper fades out showing the <em>new</em> page, then the new page fades in again. Segment switching is the highest-frequency navigation in the app.</p>
+<p><b>Fix:</b> freeze the outlet element per render.</p>
+<pre>import { useOutlet } from 'react-router-dom';
+const outlet = useOutlet();
+// ...
+&lt;motion.div key={loc.pathname} ...&gt;{outlet}&lt;/motion.div&gt;</pre>
+<p class="mute">Also consider dropping <code>mode="wait"</code> (exit 80 ms plus enter 150 ms in series delays content): use <code>exit={{ opacity: 0, transition: { duration: 0 } }}</code> or no exit at all.</p></div>
+
+<h2>Medium</h2>
+
+<div class="f"><h3><span class="tag medium">medium</span>Settings refresh icon spins and button disables on the 30 s auto-refresh</h3>
+<p class="loc">src/pages/fa/Settings.tsx:55-56</p>
+<p>Uses <code>isFetching</code>, which is true for every background refetch. The app rule (and AppShell's <code>manual</code> flag) is that nothing animates on auto-refresh.</p>
+<pre>const [spin, setSpin] = useState(false);
+&lt;Button ... onClick={() =&gt; { setSpin(true); refetch().finally(() =&gt; setSpin(false)); }} disabled={spin}&gt;
+  &lt;RefreshCw className={`h-4 w-4 ${spin ? 'animate-spin' : ''}`} /&gt; Refresh</pre></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>Stats chart re-animates when toggling "By total / By visits"; 500 ms bars; glide tooltip</h3>
+<p class="loc">src/pages/fa/Stats.tsx:70 (memo deps), 123 (bars), 121 (tooltip)</p>
+<p><code>by</code> is in the single <code>useMemo</code> deps, so <code>trend</code> gets a new array identity and recharts replays the 500 ms grow animation on an unrelated toggle. The chart also replays on every visit of this frequent tab, and the default Tooltip glides for 400 ms.</p>
+<pre>// split: compute `merchants` in its own useMemo([data, range, by]); keep the rest on [data, range, config]
+&lt;RBar ... isAnimationActive={!reduce &amp;&amp; firstMount} animationDuration={250} /&gt;   // or simply false
+&lt;Tooltip isAnimationActive={false} cursor=... content=... /&gt;</pre></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>Progress bars slide for 600 ms while typing a budget</h3>
+<p class="loc">src/components/fa/motion.tsx:34 used at src/pages/fa/Budgets.tsx:92 and Stats.tsx:159</p>
+<p>Typing in the budget field retargets the bar on each keystroke with a 0.6 s ease (keyboard-initiated, should be instant), and the colour changes instantly while the bar lags. The same 0.6 s applies when merchants re-sort on Stats (over Emil's 300 ms ceiling).</p>
+<pre>const mounted = useRef(false); useEffect(() =&gt; { mounted.current = true; }, []);
+transition={{ duration: intro &amp;&amp; !mounted.current ? 0.5 : 0.12, ease: EASE_OUT }}</pre></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>Swipe-left delete triggers on velocity alone</h3>
+<p class="loc">src/components/fa/SwipeRow.tsx:15</p>
+<p><code>vx &lt; -700</code> with any offset deletes the row, so a quick sideways flick while scrolling can delete (Undo exists, but a wrong delete plus 4.5 s toast is noisy). Same for the 70 px edit.</p>
+<pre>if (dx &lt; -DELETE_AT || (vx &lt; -700 &amp;&amp; dx &lt; -40)) { ... }
+if (dx &gt; EDIT_AT || (vx &gt; 700 &amp;&amp; dx &gt; 40)) onEdit();</pre>
+<p class="mute">Delete is also reachable without gestures through the edit sheet, so the a11y path is fine.</p></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>iOS zooms the page when a per-category budget field is focused</h3>
+<p class="loc">src/pages/fa/Budgets.tsx:97</p>
+<p>The input is <code>text-sm</code> (14 px); iOS Safari zooms on focus below 16 px, and the viewport meta allows it. The shared <code>Input</code> is already <code>text-base</code>.</p>
+<pre>className="h-10 w-[84px] ... text-base font-bold ..."   // was text-sm; widen to w-[92px] if needed</pre></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>Selected chip text fails contrast on several palette colours</h3>
+<p class="loc">src/components/fa/CategoryChips.tsx:7-9</p>
+<p>White 12 px bold on <code>#E0719E</code>, <code>#1F9E89</code>, <code>#B5803A</code>, <code>#D96B4F</code>, <code>#3B8FB0</code> is roughly 2.8 to 3.8:1 (needs 4.5:1). Keeps the approved "filled when selected" style.</p>
+<pre>style={{ borderColor: cat.color, ...(on ? { background: `color-mix(in srgb, ${cat.color} 72%, black)` } : {}) }}</pre>
+<p class="mute">Also: chips are about 30 px tall; use <code>py-2</code> for a 34 px target (gap-2 already separates them).</p></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>First-load failure shows a blank Stats screen, and fake defaults on Budgets/Categories</h3>
+<p class="loc">src/pages/fa/Stats.tsx:73, Budgets.tsx:35 and Categories.tsx:36</p>
+<p>Activity has an error state; the three new screens do not. Stats returns <code>null</code>; Budgets shows the default "600" with an empty list (and would let the user save over it); Categories shows an empty list.</p>
+<pre>const { data, isLoading, isError, refetch } = useFeed();
+if (isError &amp;&amp; !data) return (
+  &lt;div className="py-16 text-center"&gt;&lt;p className="text-sm text-muted-foreground"&gt;Couldn't load.&lt;/p&gt;
+  &lt;Button className="mt-4" onClick={() =&gt; refetch()}&gt;Try again&lt;/Button&gt;&lt;/div&gt;);</pre></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>Tap feedback is hover-only on the new list rows; small targets on Stats</h3>
+<p class="loc">Stats.tsx:93, 153; Categories.tsx:73; Settings.tsx:92</p>
+<p><code>hover:bg-muted/50</code> sticks after a tap on touch devices and gives no press feedback; the Stats comparison and merchant rows have no feedback at all and are about 36 px tall.</p>
+<pre>// rows: className="... py-2 transition-colors active:bg-muted/60 [@media(hover:hover)]:hover:bg-muted/50"</pre></div>
+
+<div class="f"><h3><span class="tag medium">medium</span>No guard against Android's native pull-to-refresh</h3>
+<p class="loc">src/index.css (no overscroll-behavior) and src/components/fa/PullToRefresh.tsx:29</p>
+<p>The custom pull and Chrome's built-in pull-to-refresh can both fire in an installed Android PWA.</p>
+<pre>html, body { overscroll-behavior-y: contain; }</pre></div>
+
+<h2>Low</h2>
+<div class="f"><span class="tag low">low</span><b>Off-segment screens have no back affordance.</b> <span class="loc">AppShell.tsx:57, Budgets/Categories/Settings</span> The segments hide and only the "FA" logo returns home. Add a small chevron-left back button in the page header (instant, no motion).</div>
+<div class="f"><span class="tag low">low</span><b>Inline delete confirm swaps instantly.</b> <span class="loc">Categories.tsx:132-147 (and TxEditSheet.tsx:90)</span> Rare action, so a 150 ms fade is allowed: <code>className="animate-in fade-in duration-150"</code> on the confirm panel.</div>
+<div class="f"><span class="tag low">low</span><b>Theme and Top-merchants toggles have no sliding pill.</b> <span class="loc">Settings.tsx:31, Stats.tsx:142</span> Fine for restraint; if consistency with the main segments matters, reuse the <code>layoutId</code> pill with a distinct id (<code>layoutId="theme-seg"</code>). Not needed otherwise.</div>
+<div class="f"><span class="tag low">low</span><b>Pointless blur on a solid background.</b> <span class="loc">Activity.tsx:87</span> <code>bg-background backdrop-blur</code> on the sticky day header; drop <code>backdrop-blur</code> (GPU cost, no visual effect).</div>
+<div class="f"><span class="tag low">low</span><b>Save bar can sit behind the iOS keyboard.</b> <span class="loc">Budgets.tsx:107</span> Fixed bottom elements ignore the keyboard on iOS; users must dismiss it to save. Acceptable; or save on blur as the total field does.</div>
+<div class="f"><span class="tag low">low</span><b>DateField small targets and focus.</b> <span class="loc">DateField.tsx:35, 21, 29</span> The clear-time X is 32 px (use <code>p-2.5</code>), and the label pills hide the focused input so keyboard focus is invisible: add <code>focus-within:ring-2 focus-within:ring-ring</code> to the label pills.</div>
+<div class="f"><span class="tag low">low</span><b>Chip press has no release transition.</b> <span class="loc">CategoryChips.tsx:8</span> <code>transition-colors</code> does not cover the <code>active:scale</code>, so it snaps. Use <code>transition-[colors,transform] duration-100</code>.</div>
+<div class="f"><span class="tag low">low</span><b>Copy and shape nits.</b> <span class="loc">Settings.tsx:53, 43</span> The "—" placeholder is an em dash (use "Not yet"); "the 23rd" is hard-coded text and should read from the period config. Radii mix lg/xl/2xl/full: write the rule down (cards 2xl, rows and inputs xl, chips and pills full).</div>
+
+<h2>Working well</h2>
+<ul class="ok">
+<li>Only transform/opacity animate; <code>Bar</code> uses <code>scaleX</code>; CountUp animates only on real value change; recharts respects <code>useReducedMotion</code>.</li>
+<li>Springs have <code>bounce: 0</code>; FAB press is 0.95; drag release uses a no-bounce spring.</li>
+<li>Swipe row: direction lock, colour layers fade with drag distance, undo window with optimistic hide and an error path. Delete also lives in the edit sheet.</li>
+<li>Reduced motion is covered twice (MotionConfig and the CSS guard); the settings Version, theme and install rows have no stray motion.</li>
+<li>Save bar enter/exit is 200 ms transform plus opacity, appropriate for an occasional action.</li>
+</ul>
+
+<h2>Taste pre-flight (new screens)</h2>
+<p class="mute">The skill targets landing pages, so only the transferable checks apply. Dials read as variance 3, motion 3, density 6 (calm dashboard).</p>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Design read</td><td>Mobile finance ledger for one daily user, Calm Ledger, restrained motion.</td></tr>
+<tr><td>Fonts</td><td>Pass: Manrope UI, Fraunces only on the logo (approved override of the serif ban).</td></tr>
+<tr><td>One accent, no purple or gradients</td><td>Pass: single teal; category colours are data, not decoration.</td></tr>
+<tr><td>dvh not vh</td><td>Pass (<code>min-h-dvh</code>, <code>max-h-[90dvh]</code>).</td></tr>
+<tr><td>Loading, empty, error states</td><td>Loading pass (shape-matched skeletons). Error missing on Stats, Budgets, Categories (medium above). Empty states are plain text and adequate; no Jhey-style delight warranted.</td></tr>
+<tr><td>Form contrast and 16 px inputs</td><td>Fail on the per-category budget input and the selected chip text (medium above).</td></tr>
+<tr><td>Press feedback</td><td>Partial: chips, FAB, header pills have it; list rows are hover-only.</td></tr>
+<tr><td>Eyebrow restraint</td><td>Settings group titles use uppercase tracking four times; fine for a four-group settings list, not a landing page.</td></tr>
+<tr><td>Hand-rolled SVG, emoji</td><td>Pass: Lucide only (existing approved dependency), no emoji.</td></tr>
+<tr><td>Copy self-audit</td><td>Plain and functional; one em dash placeholder (low above).</td></tr>
+</table>
+</main>
+</body>
+</html>

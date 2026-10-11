@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { Menu, Moon, Plus, RefreshCw, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -16,6 +16,7 @@ const SEGMENTS = [{ to: '/', label: 'Overview' }, { to: '/activity', label: 'Act
 
 export function AppShell() {
   const loc = useLocation();
+  const outlet = useOutlet();   // captured per render, so the exiting page keeps its own content
   const nav = useNavigate();
   const [adding, setAdding] = useState(false);
   const [manual, setManual] = useState(false);   // spin only for refreshes the user asked for, not the 30 s auto-refresh
@@ -82,7 +83,7 @@ export function AppShell() {
               <motion.div key={loc.pathname}
                 initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0, transition: { duration: 0.15, ease: EASE_OUT } }}
                 exit={{ opacity: 0, transition: { duration: 0.08 } }}>
-                <Outlet />
+                {outlet}
               </motion.div>
             </AnimatePresence>
           </main>

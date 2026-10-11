@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { LoadError } from '@/components/fa/LoadError';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { statusOf } from '@/lib/fa/summary';
 const show = (n: number) => (n > 0 ? String(n) : '');
 
 export default function Budgets() {
-  const { data, isLoading } = useFeed();
+  const { data, isLoading, isError, refetch } = useFeed();
   const { range } = usePeriod();
   const saveBudgets = useSaveBudgets();
   const setSetting = useSetSetting();
@@ -34,6 +35,7 @@ export default function Budgets() {
 
   if (isLoading && !data) return <div className="space-y-2"><Skeleton className="h-32 rounded-2xl" />{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>;
 
+  if (isError && !data) return <LoadError what="your budgets" onRetry={() => refetch()} />;
   const valueOf = (name: string, server: number) => (name in drafts ? parseAmount(drafts[name]) : server);
   const changed = rows.filter(r => r.cat.name in drafts && parseAmount(drafts[r.cat.name]) !== r.cat.budget);
   const sumCats = rows.reduce((s, r) => s + valueOf(r.cat.name, r.cat.budget), 0);
@@ -94,7 +96,7 @@ export default function Budgets() {
                 <input inputMode="decimal" aria-label={`${cat.name} budget`} placeholder="–"
                   value={cat.name in drafts ? drafts[cat.name] : show(cat.budget)}
                   onChange={e => setDrafts(d => ({ ...d, [cat.name]: e.target.value.replace(/[^\d.,]/g, '') }))}
-                  className="h-10 w-[84px] shrink-0 rounded-lg border border-input bg-background px-2 text-right text-sm font-bold tnum outline-none focus:border-primary" />
+                  className="h-10 w-[84px] shrink-0 rounded-lg border border-input bg-background px-2 text-right text-base font-bold tnum outline-none focus:border-primary" />
               </li>
             );
           })}

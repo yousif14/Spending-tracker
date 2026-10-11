@@ -79,7 +79,7 @@ export default function Overview() {
             {cats.map(c => (
               <li key={c.name}>
                 <button onClick={() => nav(`/activity?cat=${encodeURIComponent(c.name)}`)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50">
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/60 [@media(hover:hover)]:hover:bg-muted/50">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: `${c.color}1f`, color: c.color }}>
                     <CategoryIcon categoryName={c.name} className="h-4 w-4" />
                   </span>

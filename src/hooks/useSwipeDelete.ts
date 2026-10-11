@@ -17,10 +17,8 @@ export function useSwipeDelete() {
     let undone = false;
     const timer = setTimeout(() => {
       if (undone) return;
-      del.mutate(tx.sn, {
-        onError: () => { unhide(tx.sn); toast.error("Couldn't delete. Try again."); },
-        onSettled: () => unhide(tx.sn),
-      });
+      // mutateAsync gives each call its own promise, so overlapping deletes each report their own failure
+      del.mutateAsync(tx.sn).catch(() => toast.error("Couldn't delete. Try again.")).finally(() => unhide(tx.sn));
     }, UNDO_MS);
     toast(`Deleted ${bhd(tx.amount)} · ${tx.merchant}`, {
       duration: UNDO_MS,

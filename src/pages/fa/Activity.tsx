@@ -63,7 +63,8 @@ export default function Activity() {
   if (!view) return null;
 
   const row = (t: Tx) => (
-    <motion.div key={t.sn} layout="position" {...listItem}>
+    <motion.div key={t.sn} layout={view.shown.length <= 60 ? 'position' : false} className="overflow-hidden"
+      initial={fresh.has(t.sn) ? listItem.initial : false} animate={listItem.animate} exit={listItem.exit}>
       <SwipeRow onEdit={() => setEditing(t)} onDelete={() => remove(t)} disabled={t.sn.startsWith('pending-')}>
         <TxRow tx={t} color={view.colors.get(t.category)} highlight={fresh.has(t.sn)} onClick={() => setEditing(t)} />
       </SwipeRow>
@@ -76,6 +77,7 @@ export default function Activity() {
       <p className="mb-2 mt-1 text-xs font-semibold text-muted-foreground tnum">
         {view.list.length} {view.list.length === 1 ? 'transaction' : 'transactions'} · {bhd(view.total)} BHD
       </p>
+      <div key={JSON.stringify([filter, range])}>{/* filter/period changes swap the list instantly */}
       {view.list.length === 0 ? (
         <div className="py-12 text-center">
           <p className="text-sm text-muted-foreground">No transactions match.</p>
@@ -93,6 +95,7 @@ export default function Activity() {
       ) : (
         <AnimatePresence initial={false}>{view.shown.map(row)}</AnimatePresence>
       )}
+      </div>
       {view.shown.length < view.list.length && (
         <Button variant="outline" className="mt-2 w-full" onClick={() => setLimit(l => l + PAGE)}>
           Show more ({view.list.length - view.shown.length} left)

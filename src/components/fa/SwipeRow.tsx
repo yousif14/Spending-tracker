@@ -12,11 +12,11 @@ export function SwipeRow({ children, onEdit, onDelete, disabled, surface = 'bg-b
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     const dx = info.offset.x, vx = info.velocity.x;
-    if (dx < -DELETE_AT || vx < -700) {
+    if (dx < -DELETE_AT || (vx < -700 && dx < -40)) {
       animate(x, -window.innerWidth, { duration: 0.18, ease: [0.4, 0, 1, 1] }).then(onDelete);
       return;
     }
-    if (dx > EDIT_AT || vx > 700) onEdit();
+    if (dx > EDIT_AT || (vx > 700 && dx > 40)) onEdit();
     animate(x, 0, { type: 'spring', bounce: 0, duration: 0.3 });
   };
 

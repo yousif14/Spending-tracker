@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,11 @@ import type { Tx } from '@/lib/fa/types';
 import { CategoryChips } from './CategoryChips';
 import { DateField } from './DateField';
 
-export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void }) {
+export function TxEditSheet({ tx: txProp, onClose }: { tx: Tx | null; onClose: () => void }) {
+  // keep rendering the last row while the drawer animates closed
+  const last = useRef(txProp);
+  if (txProp) last.current = txProp;
+  const tx = txProp ?? last.current;
   const { data } = useFeed();
   const update = useUpdateTx();
   const merchantUpdate = useMerchantUpdate();
@@ -21,10 +25,10 @@ export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => voi
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (!tx) return;
-    setF({ date: tx.date, time: tx.time, merchant: tx.merchant, amount: String(tx.amount), category: tx.category, tag: tx.tag });
+    if (!txProp) return;
+    setF({ date: txProp.date, time: txProp.time, merchant: txProp.merchant, amount: String(txProp.amount), category: txProp.category, tag: txProp.tag });
     setApplyAll(false); setConfirmDelete(false);
-  }, [tx]);
+  }, [txProp]);
 
   const cats = useMemo(() => (data?.categories ?? []).filter(c => c.active), [data?.categories]);
   const sameMerchant = useMemo(() => (tx ? (data?.transactions ?? []).filter(t => t.merchant === tx.merchant).length : 0), [data?.transactions, tx]);
@@ -54,7 +58,7 @@ export function TxEditSheet({ tx, onClose }: { tx: Tx | null; onClose: () => voi
   };
 
   return (
-    <Drawer open={!!tx} onOpenChange={o => { if (!o) onClose(); }}>
+    <Drawer open={!!txProp} onOpenChange={o => { if (!o) onClose(); }}>
       <DrawerContent className="max-h-[92dvh]">
         <DrawerHeader className="pb-1 text-left"><DrawerTitle>Edit payment</DrawerTitle></DrawerHeader>
         <form className="space-y-4 overflow-y-auto px-4 pb-6" onSubmit={e => { e.preventDefault(); save(); }}>

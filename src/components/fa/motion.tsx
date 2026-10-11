@@ -1,7 +1,7 @@
 // Motion primitives — Emil-weighted (fast, restrained), Jakub polish. Only transform/opacity/filter animate.
 // MotionConfig reducedMotion="user" (AppShell) turns transforms off for reduced-motion users.
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { bhd } from '@/lib/fa/money';
 
 export const EASE_OUT = [0.2, 0.8, 0.2, 1] as const;
@@ -27,18 +27,20 @@ let barsIntroduced = false;   // bars grow from zero on the first load only; lat
 export function Bar({ pct, color, className = 'h-2' }: { pct: number; color: string; className?: string }) {
   const v = Math.min(100, Math.max(0, pct)) / 100;
   const [intro] = useState(() => !barsIntroduced);
+  const settled = useRef(false);   // after the intro, value changes (e.g. typing a budget) move quickly
   useEffect(() => { barsIntroduced = true; }, []);
   return (
     <div className={`w-full overflow-hidden rounded-full bg-muted ${className}`}>
       <motion.div className="h-full w-full origin-left rounded-full" style={{ background: color }}
-        initial={intro ? { scaleX: 0 } : false} animate={{ scaleX: v }} transition={{ duration: 0.6, ease: EASE_OUT }} />
+        initial={intro ? { scaleX: 0 } : false} animate={{ scaleX: v }} onAnimationComplete={() => { settled.current = true; }}
+        transition={{ duration: intro && !settled.current ? 0.6 : 0.12, ease: EASE_OUT }} />
     </div>
   );
 }
 
-/** List rows: enter = fade + small rise + blur; exit is shorter and lighter */
+/** List rows: only genuinely new rows fade in; removed rows collapse */
 export const listItem = {
-  initial: { opacity: 0, y: 6, filter: 'blur(2px)' },
-  animate: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.22, ease: EASE_OUT } },
-  exit: { opacity: 0, x: -16, transition: { duration: 0.15, ease: [0.4, 0, 1, 1] } },
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0, height: 'auto', transition: { duration: 0.2, ease: EASE_OUT } },
+  exit: { opacity: 0, height: 0, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
 };
