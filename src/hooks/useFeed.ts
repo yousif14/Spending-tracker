@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fa } from '@/lib/fa/client';
 import type { Cat, Feed, NewTx, Tx } from '@/lib/fa/types';
+import { registerCategoryIcons } from '@/utils/categoryIcons';
 
 export const FEED_KEY = ['fa-feed'] as const;
 
@@ -10,6 +11,7 @@ export function useFeed() {
     queryKey: FEED_KEY, queryFn: fa.feed,
     refetchInterval: () => (document.visibilityState === 'visible' ? 30_000 : false),
     refetchOnWindowFocus: true, staleTime: 10_000, placeholderData: prev => prev,
+    select: (f: Feed) => { registerCategoryIcons(f.categories); return f; },
   });
 }
 
@@ -45,15 +47,15 @@ export const useMerchantUpdate = () => useFeedMutation(
 
 export const useSaveCategory = () => useFeedMutation(
   // The upsert writes every column, so carry the existing budget/icon/order/active along with the change
-  async ({ name, color, from, base }: { name: string; color: string; from?: string; base?: Cat }) => {
+  async ({ name, color, icon, from, base }: { name: string; color: string; icon?: string; from?: string; base?: Cat }) => {
     if (from && from !== name) await fa.saveCategories([], { from, to: name });
-    return fa.saveCategories([{ Name: name, Color: color, Icon: base?.icon ?? 'Tag', Budget: base?.budget ?? 0, Order: base?.order ?? 999, Active: base?.active ?? true }]);
+    return fa.saveCategories([{ Name: name, Color: color, Icon: icon ?? base?.icon ?? 'Tag', Budget: base?.budget ?? 0, Order: base?.order ?? 999, Active: base?.active ?? true }]);
   },
-  (f, { name, color, from }) => {
+  (f, { name, color, icon, from }) => {
     const exists = f.categories.some(c => c.name === (from ?? name));
     const categories = exists
-      ? f.categories.map(c => (c.name === (from ?? name) ? { ...c, name, color } : c))
-      : [...f.categories, { id: -Date.now(), name, color, icon: 'Tag', budget: 0, order: 999, active: true }];
+      ? f.categories.map(c => (c.name === (from ?? name) ? { ...c, name, color, icon: icon ?? c.icon } : c))
+      : [...f.categories, { id: -Date.now(), name, color, icon: icon ?? 'Tag', budget: 0, order: 999, active: true }];
     const transactions = from && from !== name ? f.transactions.map(t => (t.category === from ? { ...t, category: name } : t)) : f.transactions;
     return { ...f, transactions, categories: categories.sort((a, b) => a.name.localeCompare(b.name)) };
   });

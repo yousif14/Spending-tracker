@@ -6,11 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDeleteCategory, useFeed, useSaveCategory } from '@/hooks/useFeed';
-import { CategoryIcon } from '@/utils/categoryIcons';
+import { CategoryIcon, getCategoryIcon, PICKABLE_ICONS } from '@/utils/categoryIcons';
 import type { Cat } from '@/lib/fa/types';
 
 const PALETTE = ['#D96B4F', '#B5803A', '#8A6A3B', '#2E8B57', '#1F9E89', '#3B8FB0', '#4F6BD9', '#7C5CC4', '#C24A6A', '#E0719E', '#5B6B7A', '#8A9490'];
-type Editing = { from?: string; name: string; color: string };
+type Editing = { from?: string; name: string; color: string; icon: string };
+
+/** The picker shows the stored icon, or the built-in one the name maps to */
+const iconNameOf = (c: Cat) => {
+  if (c.icon && c.icon !== 'Tag' && PICKABLE_ICONS[c.icon]) return c.icon;
+  const Builtin = getCategoryIcon(c.name);
+  return Object.entries(PICKABLE_ICONS).find(([, I]) => I === Builtin)?.[0] ?? 'Tag';
+};
 
 export default function Categories() {
   const { data, isLoading } = useFeed();
@@ -28,7 +35,7 @@ export default function Categories() {
 
   if (isLoading && !data) return <div className="space-y-2">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>;
 
-  const open = (c?: Cat) => { setConfirmDelete(false); setEditing(c ? { from: c.name, name: c.name, color: c.color } : { name: '', color: PALETTE[cats.length % PALETTE.length] }); };
+  const open = (c?: Cat) => { setConfirmDelete(false); setEditing(c ? { from: c.name, name: c.name, color: c.color, icon: iconNameOf(c) } : { name: '', color: PALETTE[cats.length % PALETTE.length], icon: 'Tag' }); };
   const name = editing?.name.replace(/\s+/g, ' ').trim() ?? '';
   const clash = !!editing && cats.some(c => c.name.toLowerCase() === name.toLowerCase() && c.name !== editing.from);
   const used = editing?.from ? counts.get(editing.from) ?? 0 : 0;
@@ -36,7 +43,7 @@ export default function Categories() {
   const submit = () => {
     if (!editing || !name || clash) return;
     const isNew = !editing.from;
-    save.mutate({ name, color: editing.color, from: editing.from, base: cats.find(c => c.name === editing.from) }, {
+    save.mutate({ name, color: editing.color, icon: editing.icon, from: editing.from, base: cats.find(c => c.name === editing.from) }, {
       onSuccess: () => toast.success(isNew ? `Added ${name}` : 'Saved'),
       onError: () => toast.error("Couldn't save the category. Try again."),
     });
@@ -83,7 +90,7 @@ export default function Categories() {
           {editing && (
             <form className="space-y-4 overflow-y-auto px-4 pb-6" onSubmit={e => { e.preventDefault(); submit(); }}>
               <div>
-                <Input autoFocus placeholder="Name, e.g. Pharmacy" value={editing.name} aria-label="Category name"
+                <Input autoFocus={!editing.from} placeholder="Name, e.g. Pharmacy" value={editing.name} aria-label="Category name"
                   onChange={e => setEditing({ ...editing, name: e.target.value })} />
                 {clash && <p className="mt-1 text-xs font-semibold text-destructive">A category with this name already exists.</p>}
                 {editing.from && name && name !== editing.from && used > 0 &&
@@ -91,14 +98,30 @@ export default function Categories() {
               </div>
               <div>
                 <p className="mb-2 text-sm font-semibold">Colour</p>
-                <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label="Colour">
+                <div className="grid grid-cols-6 gap-y-2" role="radiogroup" aria-label="Colour">
                   {PALETTE.map(col => (
                     <button key={col} type="button" role="radio" aria-checked={editing.color === col} aria-label={col}
                       onClick={() => setEditing({ ...editing, color: col })}
-                      className="grid aspect-square place-items-center rounded-full transition-transform active:scale-95" style={{ background: col }}>
+                      className="grid h-10 w-10 place-items-center justify-self-center rounded-full transition-transform active:scale-95" style={{ background: col }}>
                       {editing.color === col && <Check className="h-4 w-4 text-white" />}
                     </button>
                   ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold">Icon</p>
+                <div className="grid grid-cols-6 gap-y-2" role="radiogroup" aria-label="Icon">
+                  {Object.entries(PICKABLE_ICONS).map(([key, Icon]) => {
+                    const on = editing.icon === key;
+                    return (
+                      <button key={key} type="button" role="radio" aria-checked={on} aria-label={key}
+                        onClick={() => setEditing({ ...editing, icon: key })}
+                        className={`grid h-10 w-10 place-items-center justify-self-center rounded-xl border-[1.5px] transition-colors active:scale-95 ${on ? '' : 'border-border text-muted-foreground'}`}
+                        style={on ? { borderColor: editing.color, color: editing.color, background: `${editing.color}1f` } : undefined}>
+                        <Icon className="h-[18px] w-[18px]" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <Button type="submit" size="lg" disabled={!name || clash}
