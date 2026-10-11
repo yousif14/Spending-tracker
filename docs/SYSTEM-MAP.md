@@ -18,7 +18,7 @@ React PWA (this repo)  ──fetch https://n8n.11homelab.cc/webhook/...──►
 - **Backend:** n8n at `https://n8n.11homelab.cc`. There's no server of its own: every API is an n8n webhook.
 - **Database:** two **n8n Data Tables**, not Postgres. `init-scripts/01-init-financial-db.sql` is a leftover from an earlier design and nothing uses it.
 - **Hosting:** `financial-composer.yaml` runs the `financial-app` container (nginx, host port 3002) plus `financial-app-tunnel` (Cloudflare tunnel) on the external docker network `n8n-net`. Redeploy with `docker compose -f financial-composer.yaml up -d --build` (`Build-Comand.ps1`).
-- **Auth:** none. All webhooks are public. `VITE_N8N_API_KEY` is declared but never sent.
+- **Auth (since P3):** the new App API (`/webhook/fa/*`) and the iPhone webhook `addNewTransaction` require header `X-FA-Key` (n8n credential "FA App Key" `xlromAeekU2zUicJ`; value `FA_API_KEY` in `.env`/`.env.local`, never committed). The app's nginx adds it for `/api/fa/*`. The old app webhooks below are still public until P4 moves the app to `/api/fa/*`. `VITE_N8N_API_KEY` is declared but never sent.
 - **Timezone:** Asia/Bahrain. Currency: BHD (3 decimals).
 
 ## 2. Database (n8n Data Tables, project `rb6hVXbCTjBQVHmt`)
@@ -70,7 +70,21 @@ All calls go to `https://n8n.11homelab.cc/webhook` plus the path below (`src/lib
 | `getTransactionStats` | `GET /api/transactions/stats` | — | ❌ Missing. The app falls back to client-side calculation. Only Dashboard uses it, and Dashboard isn't routed. |
 | `getTransactionsByMonth`, `getSummary`, `createBudget`, `ingestSms`, `createTransaction` | `/api/transactions/month/*`, `/api/summary`, `/api/budget`, `/api/ingest-sms`, `POST /api/transactions` | — (some exist only in the **inactive** "API - Transactions (Array)" `Fpsq3CK9cFfaVBQc`) | ❌ Dead code paths (`useApi.ts` hooks). |
 
-Note that the Docker nginx config proxies `/api/* → n8n /webhook/api/*`, but the app never uses it because it calls n8n directly.
+### App API (P3) — workflow "FA - App API" `IEW0HesCX5GkbAFt`, built by `n8n/workflows/fa-app-api.build.mjs`
+
+The app calls these as `/api/fa/<path>`; nginx (`nginx/default.conf.template`, or the Vite dev proxy) rewrites to `/webhook/fa/<path>` and adds `X-FA-Key`. Without the key n8n returns 403.
+
+| Path | Method | Body | Returns |
+|---|---|---|---|
+| `fa/feed` | GET | – | `{ success, generatedAt, transactions[], categories[], merchants[], settings{} }` (mapping in `n8n/code/feed.js`) |
+| `fa/tx-add` | POST | `{ date, time, merchant, amount, category, tag? }` | `{ success, SN }`; 400 on bad input; stores `Source: manual`, runs dedupe, **no** Google Sheet log |
+| `fa/tx-update` | POST | `{ sn, date?, time?, merchant?, amount?, category?, tag? }` | `{ success }`; 404 if SN unknown |
+| `fa/tx-delete` | POST | `{ sn }` | `{ success }` |
+| `fa/merchant` | POST | `{ from, to?, category? }` | `{ success, updated }` (all transactions + Cat-list upsert) |
+| `fa/categories` | POST | `{ items: [{ id?, Name, Color?, Icon?, Budget?, Order?, Active? }], rename?: { from, to } }` | `{ success }` (rename updates transactions + Cat-list) |
+| `fa/settings` | POST | `{ key, value }` | `{ success }` |
+
+The old nginx `/api/* → /webhook/api/*` block was removed in P3 (the current app calls n8n directly).
 
 ## 4. n8n workflows in the finance system
 
@@ -117,7 +131,7 @@ Telegram chat id is `1804897276`. The trigger node `combined-telegram-trigger` h
 2. **The whole table goes to the browser on every load** (~2.1k rows and growing). All filtering, stats, and budget maths run client-side.
 3. ~~Mixed `Date` formats~~ fixed in P1: all rows are ISO. Joseph's finance code still accepts both.
 4. Category typos were fixed in P1. Category colours in the app still come from `src/utils/categoryColors.ts`, not from `Categories.Color` (P5).
-5. **No auth** on any webhook. Anyone with the URL can read, edit, or delete transactions.
+5. **Auth is partial (P3):** `fa/*` and `addNewTransaction` need `X-FA-Key`; the old app webhooks (FA - Get / Update / Merchant, `manualAddTransaction`) and the Telegram callback path are still open until P4 switches the app over. Note: `.env` was tracked in the public GitHub repo until P3 (`CLOUDFLARE_TUNNEL_TOKEN` is in history).
 6. The FA bot token now lives in n8n's environment (`FA_TG_BOT_TOKEN` in `C:\Data\n8n\.env`, `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`); HTTP Telegram nodes use `{{ $env.FA_TG_BOT_TOKEN }}`. Old workflow versions in n8n's history still contain it, so **rotate it** (BotFather `/revoke`, then update `.env` and the "Spending Tracker" credential).
 7. The Dedupe key ignores `Card_ending`, so two identical purchases in the same minute collapse into one.
 8. Budget is hard-coded in the frontend: `DEFAULT_TOTAL_BUDGET = 600` in `Budget.tsx`, and a default of 750 in stats. The `budgets` concept doesn't exist in n8n.
